@@ -1,6 +1,6 @@
 // iLife — служебный воркер: приложение открывается и без интернета (кроме погоды, курсов, шрифта Google, входа Google, Spotify и баз фильмов).
 // Файлы приложения кешируются при первом открытии; при выходе новой версии меняйте CACHE (число в конце) — старый кеш удалится сам.
-const CACHE = 'ilife-v1.2.0';
+const CACHE = 'ilife-v1.2.1';
 const CORE = [
     './', 'index.html', 'manifest.webmanifest',
     'css/android.css', 'css/app.css',

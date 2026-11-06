@@ -25,6 +25,11 @@ const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
 const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
 const MV_AI_MODELS = { gemini: 'gemini-3.8-flash', claude: 'claude-sonnet-5-5' };   // названия моделей меняются — в Настройках их можно поправить
 const MV_AI_NAMES = { gemini: 'Gemini', claude: 'Claude' };
+// Если основная модель перегружена (503) — приложение само пробует эти запасные (только когда вы не вписали свою модель)
+const MV_AI_FALLBACKS = { gemini: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'], claude: [] };
+const MV_RETRY_CODES = [500, 502, 503, 504, 529];   // «сервер временно недоступен / перегружен» — имеет смысл повторить
+let MV_AI_RETRY_MS = 1500;                           // пауза перед повтором
+let mvAiUsedModel = '';                              // какая модель ответила в последний раз
 
 // ---------- Настройки источников (на этом устройстве) ----------
 function mvCfg() { return Object.assign({ tmdb: '', omdb: '', kp: '', ai: 'none', aiKey: '', aiModel: '', aiAuto: true }, LS.get('movie_cfg', {})); }
@@ -372,16 +377,20 @@ async function mvAiImage(file) {   // картинка для ИИ: не бол�
     if (!r.blob) throw mvErr('image', 'не удалось подготовить картинку');
     return r.blob;
 }
-function mvAiHttpError(provider, e) {
+function mvAiHttpError(provider, e, model) {
     if (e.code === 400 && provider === 'gemini') return 'Gemini: ' + e.message + ' (проверьте ключ и название модели)';
-    if (e.code === 404) return MV_AI_NAMES[provider] + ': модель «' + mvAiModel() + '» не найдена — впишите актуальное название в Настройках';
+    if (e.code === 404) return MV_AI_NAMES[provider] + ': модель «' + (model || mvAiModel()) + '» не найдена — впишите актуальное название в Настройках';
     return MV_AI_NAMES[provider] + ': ' + e.message;
 }
+function mvAiModelChain() {   // основная модель и, если свою не вписывали, запасные
+    const c = mvCfg(), main = mvAiModel();
+    return String(c.aiModel || '').trim() ? [main] : [main].concat(MV_AI_FALLBACKS[c.ai] || []);
+}
 async function mvAskAiText(parts) {   // общий вызов: parts = { text, imageBlob? } → строка ответа
-    const c = mvCfg(), key = mvKey('aiKey'), model = mvAiModel();
+    const c = mvCfg(), key = mvKey('aiKey');
     if (!mvHasAi()) throw mvErr('nokey', 'ИИ не подключён');
     const b64 = parts.imageBlob ? await blobToBase64(parts.imageBlob) : '';
-    try {
+    const ask = async model => {
         if (c.ai === 'gemini') {
             const body = { contents: [{ parts: [{ text: parts.text }].concat(b64 ? [{ inline_data: { mime_type: 'image/jpeg', data: b64 } }] : []) }], generationConfig: { response_mime_type: 'application/json' } };
             const j = await mvFetch(GEMINI_API + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, 60000);
@@ -391,7 +400,27 @@ async function mvAskAiText(parts) {   // общий вызов: parts = { text, 
         const body = { model, max_tokens: 1200, messages: [{ role: 'user', content: (b64 ? [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } }] : []).concat([{ type: 'text', text: parts.text }]) }] };
         const j = await mvFetch(CLAUDE_API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify(body) }, 60000);
         return ((j && j.content) || []).map(p => p.text || '').join('\n');
-    } catch (e) { e.message = mvAiHttpError(c.ai, e); throw e; }
+    };
+    // 503 и подобные — временная перегрузка у сервиса: повторяем, затем пробуем запасные модели
+    const chain = mvAiModelChain(), tried = [];
+    let last = null;
+    for (let i = 0; i < chain.length; i++) {
+        tried.push(chain[i]);
+        for (let a = 0; a < 2; a++) {
+            try { const t = await ask(chain[i]); mvAiUsedModel = chain[i]; return t; }
+            catch (e) {
+                last = e;
+                if (i > 0 && e.code === 404) break;                                   // запасной модели нет у этого ключа — берём следующую
+                if (MV_RETRY_CODES.indexOf(e.code) < 0) { e.message = mvAiHttpError(c.ai, e, chain[i]); throw e; }
+                if (a === 0) await new Promise(r => setTimeout(r, MV_AI_RETRY_MS));
+            }
+        }
+    }
+    const e = last || mvErr('network', 'нет ответа');
+    if (MV_RETRY_CODES.indexOf(e.code) >= 0) {
+        e.message = MV_AI_NAMES[c.ai] + ' перегружен или временно недоступен (' + e.code + '). Приложение повторило запрос' + (tried.length > 1 ? ' и пробовало модели: ' + tried.join(', ') : '') + '. Это неполадка на стороне сервиса — попробуйте через минуту.';
+    } else e.message = mvAiHttpError(c.ai, e, tried[tried.length - 1]);
+    throw e;
 }
 async function mvAskAi(file) { return mvParseAiJson(await mvAskAiText({ text: MV_AI_PROMPT, imageBlob: await mvAiImage(file) })); }
 
@@ -405,6 +434,6 @@ async function mvTestSources() {
     await run('TMDB', !!mvKey('tmdb'), async () => { const h = await tmdbSearch('Начало'); return 'работает, найдено: ' + h.length; });
     await run('OMDb', !!mvKey('omdb'), async () => { const r = await omdbRatings('tt0111161'); return 'работает (IMDb ' + (r.imdb || '—') + ')'; });
     await run('Кинопоиск', !!mvKey('kp'), async () => { const r = await kpRatings({ title: 'Побег из Шоушенка', year: 1994 }); return r && r.kp ? 'работает (оценка ' + r.kp + ')' : 'ключ принят, но оценка не найдена'; });
-    await run('ИИ — ' + (MV_AI_NAMES[c.ai] || ''), mvHasAi(), async () => { const t = await mvAskAiText({ text: 'Ответь JSON {"ok":true}' }); return /ok/i.test(t) ? 'работает, модель ' + mvAiModel() : 'ответил, но неожиданно: ' + String(t).slice(0, 60); });
+    await run('ИИ — ' + (MV_AI_NAMES[c.ai] || ''), mvHasAi(), async () => { const t = await mvAskAiText({ text: 'Ответь JSON {"ok":true}' }); return /ok/i.test(t) ? (mvAiUsedModel && mvAiUsedModel !== mvAiModel() ? 'работает через запасную модель ' + mvAiUsedModel + ' (основная ' + mvAiModel() + ' сейчас перегружена)' : 'работает, модель ' + mvAiModel()) : 'ответил, но неожиданно: ' + String(t).slice(0, 60); });
     return out;
 }
