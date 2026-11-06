@@ -54,6 +54,7 @@ function renderGoogleCard() {
     const fl = $('#g-folder'); fl.hidden = !g.folderId; if (g.folderId) fl.href = 'https://drive.google.com/drive/folders/' + encodeURIComponent(g.folderId);
     const auto = $('#google-auto'); if (auto.checked !== !!g.cfg.auto) auto.checked = !!g.cfg.auto;
     const med = $('#google-media'); if (med.checked !== !!g.cfg.media) med.checked = !!g.cfg.media;
+    const ky = $('#google-keys'); if (ky && ky.checked !== !!g.cfg.keys) ky.checked = !!g.cfg.keys;
 }
 function initGoogleCard() {
     $('#g-client').addEventListener('change', e => {
@@ -76,6 +77,11 @@ function initGoogleCard() {
         gCfgSave({ media: e.target.checked });
         toast(e.target.checked ? 'Вложения будут синхронизироваться' : 'Вложения не синхронизируются — только тексты');
         if (e.target.checked) { LS.del('g_media_try'); scheduleCloudSync(300); }
+    });
+    $('#google-keys').addEventListener('change', e => {
+        gCfgSave({ keys: e.target.checked });
+        toast(e.target.checked ? 'Ключи будут храниться на вашем Google Диске' : 'Ключи остаются только на этом устройстве (файл на Диске их больше не обновляет)');
+        if (e.target.checked) { LS.set('g_dirty', true); scheduleCloudSync(300); }
     });
     renderGoogleCard();
 }

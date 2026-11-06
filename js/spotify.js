@@ -19,7 +19,7 @@ const SP_TOKEN = 'https://accounts.spotify.com/api/token';
 const SP_API = 'https://api.spotify.com/v1';
 
 function spCfg() { return LS.get('spotify', {}) || {}; }
-function spSave(patch) { const c = Object.assign(spCfg(), patch); LS.set('spotify', c); return c; }
+function spSave(patch) { const c = Object.assign(spCfg(), patch); LS.set('spotify', c); if ('clientId' in patch && typeof cloudLocalChanged === 'function') cloudLocalChanged(); return c; }   // Client ID уходит на Google Диск (gdrive.js)
 function spotifyRedirectUri() {
     // Адрес страницы без параметров и без index.html: именно его нужно вписать в Redirect URIs на developer.spotify.com
     return location.origin + location.pathname.replace(/index\.html$/, '');

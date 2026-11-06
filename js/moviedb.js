@@ -2,8 +2,8 @@
 // =====================================================================================================
 // iLife — КИНО: ИСТОЧНИКИ ДАННЫХ, СРАВНЕНИЕ НАЗВАНИЙ, ПОИСК НАЗВАНИЙ В ТЕКСТЕ СО СКРИНШОТА, ИИ ПО КАДРУ (версия 1.2.0).
 //
-// Откуда берутся данные (всё напрямую из браузера, без своего сервера; ключи хранятся только на этом устройстве,
-// ключ «movie_cfg», и не попадают ни в копию данных, ни на Google Диск):
+// Откуда берутся данные (всё напрямую из браузера, без своего сервера; ключи лежат на устройстве в «movie_cfg»,
+// в файл резервной копии не попадают, а на ваш Google Диск уходят, если не выключен переключатель в Настройках → Google Диск):
 //   • TMDB (themoviedb.org)  — ОСНОВА: поиск по названию, обложка, режиссёр, актёры, жанры, описание, оценка TMDB. Бесплатный ключ.
 //   • OMDb (omdbapi.com)      — оценки IMDb, Rotten Tomatoes и Metacritic (по IMDb-номеру из TMDB). Бесплатный ключ.
 //   • ПоискКино (poiskkino.dev, бывший kinopoisk.dev) — оценка Кинопоиска. Бесплатный ключ из Telegram-бота.
@@ -33,7 +33,7 @@ let mvAiUsedModel = '';                              // какая модель 
 
 // ---------- Настройки источников (на этом устройстве) ----------
 function mvCfg() { return Object.assign({ tmdb: '', omdb: '', kp: '', ai: 'none', aiKey: '', aiModel: '', aiAuto: true }, LS.get('movie_cfg', {})); }
-function mvCfgSave(patch) { const c = Object.assign(mvCfg(), patch); LS.set('movie_cfg', c); return c; }
+function mvCfgSave(patch) { const c = Object.assign(mvCfg(), patch); LS.set('movie_cfg', c); if (typeof cloudLocalChanged === 'function') cloudLocalChanged(); return c; }   // ключи уходят на Google Диск (gdrive.js)
 function mvKey(name) { return String(mvCfg()[name] || '').replace(/\s+/g, ''); }
 function mvHasTmdb() { return !!mvKey('tmdb'); }
 function mvHasAi() { const c = mvCfg(); return (c.ai === 'gemini' || c.ai === 'claude') && !!mvKey('aiKey'); }

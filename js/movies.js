@@ -7,7 +7,7 @@
 //           directors[], cast[], overview, tmdbId, imdbId, kpId, posterPath, coverId (обложка в IndexedDB), posterUrl,
 //           ratings: { kp, imdb, tmdb, rt, mc }, ratingsAt, myRating (1–10|null), note, src, addedAt, startedAt, watchedAt, updatedAt }
 // Записи сливаются между устройствами через Google Диск так же, как идеи и дела (см. G_LISTS в js/gdrive.js);
-// обложки — как вложения. Ключи сервисов (TMDB, OMDb, Кинопоиск, ИИ) хранятся только на устройстве.
+// обложки — как вложения. Ключи сервисов (TMDB, OMDb, Кинопоиск, ИИ) не входят в копию данных, но синхронизируются через Google Диск (gdrive.js).
 // =====================================================================================================
 
 let movies = LS.get('movies', []);
@@ -373,7 +373,7 @@ async function mvAddFromSearch(spec, status, src) {
     }
 }
 
-// ---------- Настройки → Кино (ключи хранятся только на этом устройстве) ----------
+// ---------- Настройки → Кино (ключи: на устройстве и, по желанию, на вашем Google Диске) ----------
 function renderMoviesCard() {
     if (!$('#movies-cfg-card')) return;
     const c = mvCfg();
@@ -398,7 +398,7 @@ function initMoviesCard() {
     const bind = (sel, key, label) => $(sel).addEventListener('change', e => {
         mvCfgSave({ [key]: e.target.value.trim() });
         renderMoviesCard(); renderMovies();
-        toast(e.target.value.trim() ? label + ': сохранено на этом устройстве' : label + ': ключ удалён');
+        toast(e.target.value.trim() ? label + ': сохранено' + (typeof gCfg === 'function' && gCfg().keys && gUser ? ' (и на Google Диске)' : ' на этом устройстве') : label + ': ключ удалён');
     });
     bind('#mvc-tmdb', 'tmdb', 'TMDB'); bind('#mvc-omdb', 'omdb', 'OMDb'); bind('#mvc-kp', 'kp', 'Кинопоиск'); bind('#mvc-aikey', 'aiKey', 'Ключ ИИ'); bind('#mvc-aimodel', 'aiModel', 'Модель ИИ');
     $('#mvc-ai').addEventListener('change', e => { mvCfgSave({ ai: e.target.value }); renderMoviesCard(); renderMovies(); });
