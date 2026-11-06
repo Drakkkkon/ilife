@@ -251,7 +251,7 @@ function tgPlans(posts, aiMap, cfg) {
 }
 
 // ---------- Вложения ----------
-const TG_MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', flac: 'audio/flac', mp4: 'video/mp4', pdf: 'application/pdf', txt: 'text/plain' };
+const TG_MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', flac: 'audio/flac', mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime', webm: 'video/webm', mkv: 'video/x-matroska', avi: 'video/x-msvideo', pdf: 'application/pdf', txt: 'text/plain' };
 function tgMimeByName(name) { return TG_MIME[String(name || '').split('.').pop().toLowerCase()] || ''; }
 async function tgAttach(m) {
     const blob = m.get ? await m.get() : await tgDownloadFile(m.fid);
@@ -310,6 +310,7 @@ async function tgCommit(rows, ui) {
         const dropSet = new Set(drop); tgInboxSave(tgInbox().filter(x => !dropSet.has(x.key)));
     }
     tgStateSave({ lastAdded: Date.now() });
+    if (stat.added && typeof ideaAutoSoon === 'function') ideaAutoSoon();   // ИИ раскладывает новые идеи по категориям, если это включено
     return stat;
 }
 function tgStatText(s) {
@@ -495,12 +496,13 @@ function tgMakeResolver(entries) {   // путь из сообщения («phot
         return found || map.get(tgNormPath(raw).split('/').pop()) || null;
     };
 }
-function tgMediaFromExport(path, kind, name, mime, resolve, stat) {
+// extra (необязательно): { thumb: путь превью из экспорта, dur: секунд, w, h, mt: media_type } — нужны «Мое_совсек» (фото и видео)
+function tgMediaFromExport(path, kind, name, mime, resolve, stat, extra) {
     if (!path || /^\(.*\)$/.test(String(path).trim())) { stat.missing++; return null; }   // «(File not included…)» — при экспорте не отметили скачивание
     const e = resolve(path);
     if (!e) stat.notFound++;   // в сообщении есть вложение, а среди выбранных файлов его нет
     const base = String(path).split('/').pop();
-    return { kind, name: name || base, mime: mime || tgMimeByName(name || base), size: e ? e.size : 0, get: e ? () => e.get() : null, missing: !e };
+    return Object.assign({ kind, name: name || base, mime: mime || tgMimeByName(name || base), size: e ? e.size : 0, get: e ? () => e.get() : null, missing: !e, path: String(path), entry: e || null }, extra || {});
 }
 // --- JSON (result.json)
 function tgExportText(t) {
@@ -521,11 +523,11 @@ function tgNormalizeExportJson(chat, resolve, stat) {
         const text = tgExportText(m.text);
         const unix = Number(m.date_unixtime), date = unix ? unix * 1000 : (Date.parse(m.date) || 0);
         const media = [];
-        if (m.photo) { const x = tgMediaFromExport(m.photo, 'image', '', 'image/jpeg', resolve, stat); if (x) media.push(x); }
+        if (m.photo) { const x = tgMediaFromExport(m.photo, 'image', '', 'image/jpeg', resolve, stat, { w: Number(m.width) || 0, h: Number(m.height) || 0 }); if (x) media.push(x); }
         if (m.file && m.media_type !== 'sticker') {
             const mt = m.mime_type || '', mtype = m.media_type || '';
             const kind = mtype === 'voice_message' ? 'voice' : mtype === 'audio_file' || /^audio\//.test(mt) ? 'audio' : /^image\//.test(mt) ? 'image' : 'file';
-            const x = tgMediaFromExport(m.file, kind, m.file_name || '', mt, resolve, stat); if (x) media.push(x);
+            const x = tgMediaFromExport(m.file, kind, m.file_name || '', mt, resolve, stat, { thumb: typeof m.thumbnail === 'string' ? m.thumbnail : '', dur: Number(m.duration_seconds) || 0, w: Number(m.width) || 0, h: Number(m.height) || 0, mt: mtype }); if (x) media.push(x);
         }
         if (!text.trim() && !media.length) { if (m.photo || m.file) stat.emptyMedia++; return; }
         out.push({ key: chatId + ':' + m.id, chat: chatId, ch: chat.name, cu: '', id: Number(m.id), date, text, gid: '', from: String(m.from_id || m.from || ''), media });
@@ -563,7 +565,7 @@ function tgParseHtmlExport(htmlText, resolve, stat, chatName, chatId) {
             const h = a.getAttribute('href') || ''; const m = /^(photos|files|voice_messages|video_files|round_video_messages|audio_files?)\//i.exec(h); if (!m) return;
             if (/_thumb\./i.test(h)) return;
             const folder = m[1].toLowerCase(), kind = folder === 'photos' ? 'image' : folder === 'voice_messages' ? 'voice' : /^audio/.test(folder) ? 'audio' : (tgMimeByName(h).startsWith('image/') ? 'image' : tgMimeByName(h).startsWith('audio/') ? 'audio' : 'file');
-            const x = tgMediaFromExport(h, kind, '', '', resolve, stat); if (x) media.push(x);
+            const x = tgMediaFromExport(h, kind, '', '', resolve, stat, { mt: folder === 'round_video_messages' ? 'video_message' : '' }); if (x) media.push(x);
         });
         if (!text && !media.length) return;
         out.push({ key: chatId + ':' + id, chat: chatId, ch: chatName, cu: '', id, date, text, gid: '', from: ((el.querySelector('.from_name') || {}).textContent || '').trim(), media });

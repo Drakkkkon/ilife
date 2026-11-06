@@ -41,7 +41,7 @@
             <!-- Логотип и версия: нажатие на версию открывает «Настройки → О приложении → Журнал изменений» -->
             <div class="splash-brand">
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.5.0</span><i data-i="chevron_right"></i></button>
+                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.6.0</span><i data-i="chevron_right"></i></button>
             </div>
             <h1 id="splash-greeting" style="font-size:24px;font-weight:400">Здравствуйте!</h1>
             <div class="splash-center">
@@ -64,7 +64,7 @@
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                 <div class="brand-txt">
                     <h2>iLife</h2>
-                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.5.0</span><i data-i="chevron_right"></i></button>
+                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.6.0</span><i data-i="chevron_right"></i></button>
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -87,7 +87,7 @@
                     <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                     <div class="brand-txt">
                         <b>iLife</b>
-                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.5.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
+                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.6.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
                     </div>
                 </div>
                 <!-- Поиск — в самом верху: по словам, #хештегам и датам -->
@@ -101,6 +101,8 @@
                 </div>
                 <div class="tagbar" id="tagbar" aria-label="Хештеги"></div>
                 <p class="hint search-status" id="search-status" aria-live="polite"></p>
+                <!-- Найденные заметки встают сразу под полем поиска (js/ideas.js → renderIdeas) -->
+                <div id="search-results" aria-live="polite" hidden></div>
 
                 <header class="page-head">
                     <h1 class="page-title">Идеи</h1>
@@ -176,8 +178,27 @@
                     </div>
                 </div>
 
-                <div class="list-head"><h2>Заметки</h2><span class="count" id="ideas-count"></span></div>
-                <div id="ideas-list"></div>
+                <!-- Папки: по дате (год → месяц → день) и по категориям (js/idea-folders.js) либо лентой, как раньше -->
+                <div id="ideas-browser">
+                    <div class="list-head"><h2>Заметки</h2><span class="count" id="ideas-count"></span></div>
+                    <div class="if-bar" id="if-bar" hidden>
+                        <div class="seg" id="if-mode" role="group" aria-label="Как показывать заметки">
+                            <button type="button" data-m="date" title="Папки: год → месяц → день"><i data-i="calendar_month"></i><span>По дате</span></button>
+                            <button type="button" data-m="cat" title="Папки по категориям"><i data-i="folder"></i><span>По категориям</span></button>
+                            <button type="button" data-m="all" title="Все заметки подряд"><i data-i="view_list"></i><span>Лентой</span></button>
+                        </div>
+                        <div class="seg" id="if-view" role="group" aria-label="Вид папок">
+                            <button type="button" data-v="large" title="Крупные папки"><i data-i="grid_view"></i><span>Крупные</span></button>
+                            <button type="button" data-v="small" title="Мелкие папки"><i data-i="apps"></i><span>Мелкие</span></button>
+                            <button type="button" data-v="list" title="Список"><i data-i="view_list"></i><span>Список</span></button>
+                        </div>
+                        <div class="gal-acts" id="if-acts"></div>
+                    </div>
+                    <nav class="gal-crumbs if-crumbs" id="if-crumbs" aria-label="Путь" hidden></nav>
+                    <p class="hint if-hint" id="if-hint" hidden></p>
+                    <div id="ideas-folders"></div>
+                    <div id="ideas-list"></div>
+                </div>
             </section>
 
             <!-- ===================== ДЕЛА ===================== -->
@@ -299,54 +320,19 @@
                 </div>
             </section>
 
-            <!-- ===================== МОЕ_СОВСЕК (фото и GIF, js/gallery.js) ===================== -->
+            <!-- ===================== МОЕ_СОВСЕК (фото, GIF и видео, js/gallery.js) ===================== -->
             <section id="sovsek" class="tab" data-tab="sovsek">
                 <header class="page-head">
                     <h1 class="page-title">Мое_совсек</h1>
-                    <button type="button" class="btn" id="gal-save-all" title="Сохранить все фото архивом" aria-label="Сохранить всё"><i data-i="download"></i><span class="lbl">Сохранить всё</span></button>
                 </header>
-
-                <!-- Такое же меню, как «Telegram-канал» на странице «Идеи», но здесь только экспорт из файла и только картинки -->
-                <div class="card" id="gal-card">
-                    <h3 class="card-title"><span class="ico"><i data-i="send"></i></span><span class="ttl">Фото из Telegram</span><span class="badge" id="gal-badge"></span>
-                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
-                    <div class="card-body">
-                        <p class="hint" id="gal-status" style="margin-bottom:0.75rem"></p>
-                        <div class="tg-modes">
-                            <div class="tg-mode">
-                                <b><i data-i="upload_file"></i>Из экспорта Telegram</b>
-                                <span class="hint">В Telegram Desktop: «Экспорт истории чата» (JSON или HTML, с включёнными «Фото»). Выберите ZIP-архив или файлы из него. Берутся картинки и GIF; из копий остаётся версия с лучшим разрешением. Видео пока не берём.</span>
-                                <button type="button" class="btn btn-primary" id="gal-import"><i data-i="upload_file"></i>Выбрать экспорт</button>
-                            </div>
-                        </div>
-                        <input type="file" id="gal-file" multiple hidden>
-                        <div class="switch-row" id="gal-ai-row">
-                            <div class="tx"><b>ИИ подбирает хештеги и имена</b><span class="sub" id="gal-ai-sub">Хештеги по тому, что на фото, и имена людей, которые написаны в подписи или на самой картинке. По лицам ИИ людей не определяет. Уменьшенная копия фото и подпись уходят в вашу ИИ-службу</span></div>
-                            <input type="checkbox" class="switch" id="gal-ai" aria-label="ИИ подбирает хештеги и имена">
-                        </div>
-                        <div class="btn-group" style="margin-top:0.25rem">
-                            <button type="button" class="btn" id="gal-ai-run" hidden><i data-i="auto_awesome"></i>ИИ-разбор</button>
-                        </div>
-                    </div>
+                <div class="seg sov-seg" id="sov-switch" role="group" aria-label="Раздел">
+                    <button type="button" data-sov="photo"><i data-i="photo_library"></i><span>Фото и GIF</span><span class="cnt"></span></button>
+                    <button type="button" data-sov="video"><i data-i="movie"></i><span>Видео</span><span class="cnt"></span></button>
                 </div>
 
-                <div class="gal-bar" id="gal-bar">
-                    <nav class="gal-crumbs" id="gal-crumbs" aria-label="Путь"></nav>
-                    <div class="gal-tools">
-                        <div class="seg" id="gal-view" role="group" aria-label="Вид">
-                            <button type="button" data-v="list" title="Список"><i data-i="view_list"></i><span>Список</span></button>
-                            <button type="button" data-v="small" title="Мелкие файлы"><i data-i="apps"></i><span>Мелкие</span></button>
-                            <button type="button" data-v="large" title="Крупные файлы"><i data-i="grid_view"></i><span>Крупные</span></button>
-                        </div>
-                        <select id="gal-sort" aria-label="Порядок">
-                            <option value="new">Сначала новые</option>
-                            <option value="old">Сначала старые</option>
-                            <option value="big">Сначала тяжёлые</option>
-                        </select>
-                    </div>
-                    <div class="gal-acts" id="gal-acts"></div>
-                </div>
-                <div id="gal-body"></div>
+                <!-- Содержимое обеих страниц рисует js/gallery.js (одна и та же логика папок для фото и для видео) -->
+                <div class="sov-pane" id="sov-photo"></div>
+                <div class="sov-pane" id="sov-video" hidden></div>
             </section>
 
             <!-- ===================== НАСТРОЙКИ ===================== -->
@@ -382,6 +368,16 @@
                                 <button type="button" class="btn btn-primary" id="g-reconnect" hidden><i data-i="login"></i>Продолжить синхронизацию</button>
                                 <a class="btn" id="g-folder" href="#" target="_blank" rel="noopener noreferrer" hidden><i data-i="folder"></i>Открыть папку на Диске</a>
                                 <button type="button" class="btn" id="g-signout"><i data-i="logout"></i>Выйти</button>
+                            </div>
+                            <!-- Мое_совсек: кнопки «Скачать все фото» и «Очистить кеш» (js/gallery.js → renderSovStore) -->
+                            <div class="sov-store">
+                                <h4>Мое_совсек на этом устройстве</h4>
+                                <p class="hint" id="sov-store-info"></p>
+                                <div class="btn-group">
+                                    <button type="button" class="btn" id="sov-dl-all"><i data-i="cloud_download"></i>Скачать все фото в Мое_совсек</button>
+                                    <button type="button" class="btn" id="sov-clear"><i data-i="delete"></i>Очистить кеш</button>
+                                </div>
+                                <p class="hint" style="margin:0.5rem 0 0">Между устройствами идут уменьшенные копии (превью), а полные файлы скачиваются при открытии. «Очистить кеш» удаляет с этого устройства только полные фото, GIF и видео из Мое_совсек, которые уже лежат на Google Диске; в облаке они остаются.</p>
                             </div>
                             <div class="switch-row" style="margin-top:8px"><div class="tx"><b>Автоматическая синхронизация</b><span class="sub">Сразу после изменений, при открытии и раз в минуту, пока приложение на экране</span></div><input type="checkbox" class="switch" id="google-auto" aria-label="Автоматическая синхронизация"></div>
                             <div class="switch-row"><div class="tx"><b>Ключи тоже на Диск</b><span class="sub">Ключи TMDB, OMDb, ПоискКино, ИИ, YouTube, Client ID Spotify и токен Telegram-бота лежат в вашем файле iLife/ilife_data.json и подтягиваются на новом устройстве. Выключите, если не хотите хранить их на Диске</span></div><input type="checkbox" class="switch" id="google-keys" aria-label="Хранить ключи на Google Диске"></div>
@@ -623,13 +619,24 @@
                     <div class="card-body">
                         <div class="about-head">
                             <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">1.5.0</span></div></div>
+                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">1.6.0</span></div></div>
                         </div>
                         <p style="margin-bottom:8px">Личное приложение для себя. Дизайн и логика — из My Money 4.8.1.</p>
                         <p class="hint" style="margin-bottom:16px"><b>Не для коммерческого использования:</b> приложение создано только для личных, некоммерческих целей — его нельзя продавать, сдавать в аренду или использовать в бизнесе. Логотип (папка «iLife ’09») — сторонняя картинка, права на неё принадлежат её владельцам; он используется здесь только в личных целях.</p>
 
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
+                        <div class="cl-version">
+                            <h4>1.6.0 <span class="cl-tag">Папки в «Идеях» · превью · видео</span></h4>
+                            <ul>
+                                <li>«Идеи»: заметки лежат в папках. Режимы: «По дате» (год → месяц → день), «По категориям» и «Лентой» (как раньше). Папки показываются крупными или мелкими плитками либо списком. Категории: дрэг, ии, книги, мемы, стендап, олдбук — список можно менять кнопкой «Категории».</li>
+                                <li>ИИ читает каждую заметку и раскладывает её по категориям (кнопка «ИИ-разбор» в режиме «По категориям»; по желанию новые заметки он раскладывает сам). Без ИИ работают простые правила по словам. В «Изменить идею» категории можно выбрать вручную — тогда ИИ эту заметку не трогает.</li>
+                                <li>Поиск: найденные по словам, #хештегам, категориям и датам заметки сразу появляются под полем поиска.</li>
+                                <li>«Мое_совсек»: уменьшенные копии (_thumb) из экспорта Telegram больше не выбрасываются — они стали значками в папках, а при синхронизации между устройствами скачиваются именно они. Полный файл подгружается с Google Диска, когда вы его открываете. Слишком крупные превью сжимаются.</li>
+                                <li>«Настройки → Google Диск»: кнопка «Скачать все фото в Мое_совсек» и кнопка «Очистить кеш» — она удаляет с устройства полные файлы, которые уже лежат на Google Диске; в облаке они остаются.</li>
+                                <li>«Мое_совсек → Видео»: отдельная страница с импортом видео из экспорта Telegram и точно такими же папками (год → месяц → день, актёры, хештеги), как у фото. Оригиналы лежат на Google Диске в папке «iLife / Мое_совсек_видео», значки — в «iLife / Мое_совсек_превью». Версия 1.6.0 нужна на всех устройствах.</li>
+                            </ul>
+                        </div>
                         <div class="cl-version">
                             <h4>1.5.0 <span class="cl-tag">Мое_совсек</span></h4>
                             <ul>
@@ -729,6 +736,7 @@
     <script src="js/spotify.js"></script>
     <script src="js/youtube.js"></script>
     <script src="js/ideas.js"></script>
+    <script src="js/idea-folders.js"></script>
     <script src="js/telegram.js"></script>
     <script src="js/gallery.js"></script>
     <script src="js/todo.js"></script>

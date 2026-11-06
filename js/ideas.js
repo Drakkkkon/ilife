@@ -62,18 +62,19 @@ function dateStrings(ms) {
         MONTHS_NOM[p.mo], MONTHS_GEN[p.mo], p.d + ' ' + MONTHS_GEN[p.mo], p.d + ' ' + MONTHS_GEN[p.mo] + ' ' + p.y, WEEKDAYS[p.wd]];
 }
 function ideaIndex(idea) {
-    const key = idea.id + '|' + (idea.updatedAt || idea.createdAt);
+    const key = idea.id + '|' + (idea.updatedAt || idea.createdAt) + '|' + (typeof ideaCatsVer !== 'undefined' ? ideaCatsVer : 0);
     let ix = IX.get(key);
     if (ix) return ix;
-    const parts = [idea.text, idea.author, (idea.files || []).map(f => f.name).join(' '), idea.track ? [idea.track.title, idea.track.artist, idea.track.album].join(' ') : ''];
+    const cats = typeof ideaCatsOf === 'function' ? ideaCatsOf(idea).map(normText) : [];   // поиск находит и по названию категории
+    const parts = [idea.text, idea.author, (idea.files || []).map(f => f.name).join(' '), idea.track ? [idea.track.title, idea.track.artist, idea.track.album].join(' ') : '', cats.join(' ')];
     const ev = idea.eventDate && !isNaN(keyToMs(idea.eventDate)) ? dateStrings(keyToMs(idea.eventDate)).map(normText) : [];
-    ix = { text: normText(parts.join(' \n ')), tags: idea.tags || [], dates: dateStrings(idea.createdAt).map(normText).concat(ev) };   // dates[0] — всегда день создания
+    ix = { text: normText(parts.join(' \n ')), tags: idea.tags || [], cats, dates: dateStrings(idea.createdAt).map(normText).concat(ev) };   // dates[0] — всегда день создания
     IX.set(key, ix);
     return ix;
 }
 function isDateToken(t) { return /^\d{1,4}([.\-\/]\d{1,4}){1,2}$/.test(t) || /^(19|20)\d\d$/.test(t); }
 function matchToken(ix, t) {
-    if (t.startsWith('#')) { const q = t.slice(1); return !q || ix.tags.some(g => g.startsWith(q)); }
+    if (t.startsWith('#')) { const q = t.slice(1); return !q || ix.tags.some(g => g.startsWith(q)) || ix.cats.some(c => c.startsWith(q)); }
     if (t === 'сегодня') return ix.dates[0] === todayKey();
     if (t === 'вчера') return ix.dates[0] === todayKey(-1);
     if (t === 'позавчера') return ix.dates[0] === todayKey(-2);
@@ -193,6 +194,7 @@ async function saveIdea() {
         draft.files = []; draft.track = null; draft.extraTags = []; ta.value = ''; LS.del('draft');
         renderDraft(); renderIdeas();
         toast('Идея сохранена');
+        if (typeof ideaAutoSoon === 'function') ideaAutoSoon();   // ИИ сам кладёт новую заметку в категории, если это включено
     } catch (e) {
         console.warn(e); toast('Не удалось сохранить идею');
     } finally { btn.disabled = false; renderDraft(); }
@@ -208,6 +210,8 @@ function noteHtml(idea) {
     let h = '<article class="note" data-id="' + idea.id + '">';
     if (idea.text) h += '<div class="note-text">' + richText(idea.text) + '</div>';
     if (extra.length) h += '<div class="chips">' + extra.map(t => '<button type="button" class="chip tag" data-tag="' + esc(t) + '">#' + esc(t) + '</button>').join('') + '</div>';
+    const cats = typeof ideaCatsOf === 'function' ? ideaCatsOf(idea) : [];
+    if (cats.length) h += '<div class="chips note-cats">' + cats.map(c => '<button type="button" class="chip cat" data-cat="' + esc(c) + '" title="Открыть папку «' + esc(c) + '»">' + ic('folder') + esc(c) + '</button>').join('') + '</div>';
     if (imgs.length) {
         const shown = imgs.slice(0, 6);
         const cls = imgs.length === 1 ? 'is-single' : imgs.length >= 5 ? 'is-multi3' : '';
@@ -243,27 +247,39 @@ function renderTagbar() {
     const active = new Set(queryTokens(ideaQuery));
     $('#tagbar').innerHTML = tags.map(([t, n]) => '<button type="button" class="chip' + (active.has('#' + t) ? ' is-on' : '') + '" data-q-tag="' + esc(t) + '">#' + esc(t) + ' <small>' + n + '</small></button>').join('');
 }
+// Заметки списком в контейнер: «Показать ещё» по 40. Используется и для результатов поиска, и для папок
+function paintNotes(el, found, emptyAll) {
+    if (!found.length) {
+        el.innerHTML = emptyAll
+            ? '<div class="empty"><div class="ico-big">' + ic('lightbulb') + '</div><b>Пока нет идей</b>Напишите первую в блоке выше: текст, #хештеги, картинки, музыку или голосовую запись.</div>'
+            : '<div class="empty"><div class="ico-big">' + ic('folder_open') + '</div><b>В этой папке пока пусто</b>Заметки появятся здесь, когда подходящие будут сохранены.</div>';
+        return;
+    }
+    const slice = found.slice(0, ideasShown);
+    el.innerHTML = slice.map(noteHtml).join('') +
+        (found.length > slice.length ? '<div style="text-align:center;margin:8px 0 16px"><button type="button" class="btn" id="ideas-more">Показать ещё (' + (found.length - slice.length) + ')</button></div>' : '');
+    hydrateNotes(el, slice);
+}
 function renderIdeas() {
-    const list = $('#ideas-list');
     const found = filteredIdeas();
     const total = ideas.length;
     const searching = queryTokens(ideaQuery).length > 0;
     $('#ideas-count').textContent = total ? (searching ? 'найдено ' + found.length + ' из ' + total : 'всего ' + total) : '';
     $('#idea-search-clear').hidden = !ideaQuery;
-    $('#search-status').textContent = searching ? (found.length ? 'Найдено: ' + found.length + ' из ' + total : 'Ничего не найдено. Попробуйте другое слово, #хештег или дату (например, 05.11.2026 или «ноябрь»).') : '';
+    $('#search-status').textContent = searching ? (found.length ? 'Найдено: ' + found.length + ' из ' + total : 'Ничего не найдено. Попробуйте другое слово, #хештег, категорию или дату (например, 05.11.2026 или «ноябрь»).') : '';
     renderTagbar();
-    if (!found.length) {
-        list.innerHTML = searching
-            ? '<div class="empty"><div class="ico-big">' + ic('search') + '</div><b>Ничего не найдено</b>Измените запрос или нажмите на крестик, чтобы показать все идеи.</div>'
-            : '<div class="empty"><div class="ico-big">' + ic('lightbulb') + '</div><b>Пока нет идей</b>Напишите первую в блоке выше: текст, #хештеги, картинки, музыку или голосовую запись.</div>';
-        $('#ideas-pdf').disabled = !total;
+    $('#ideas-pdf').disabled = !total;
+    const res = $('#search-results'), browser = $('#ideas-browser');
+    if (searching) {
+        // найденные заметки встают сразу под полем поиска, а папки на это время скрыты
+        browser.hidden = true; res.hidden = false;
+        if (!found.length) res.innerHTML = '<div class="empty"><div class="ico-big">' + ic('search') + '</div><b>Ничего не найдено</b>Измените запрос или нажмите на крестик, чтобы вернуться к папкам.</div>';
+        else paintNotes(res, found);
         return;
     }
-    $('#ideas-pdf').disabled = false;
-    const slice = found.slice(0, ideasShown);
-    list.innerHTML = slice.map(noteHtml).join('') +
-        (found.length > slice.length ? '<div style="text-align:center;margin:8px 0 16px"><button type="button" class="btn" id="ideas-more">Показать ещё (' + (found.length - slice.length) + ')</button></div>' : '');
-    hydrateNotes(list, slice);
+    res.hidden = true; res.innerHTML = ''; browser.hidden = false;
+    if (typeof renderIdeaBrowser === 'function') renderIdeaBrowser();
+    else paintNotes($('#ideas-list'), found, !total);
 }
 function hydrateNotes(root, slice) {
     root.querySelectorAll('img[data-blob]').forEach(async im => { const u = await BlobDB.url(im.dataset.blob, im.dataset.variant); if (u) im.src = u; else im.closest('button,a,div') && (im.style.display = 'none'); });
@@ -290,9 +306,11 @@ function editIdea(id) {
     const extra = (idea.tags || []).filter(t => !inText.has(t));
     const removed = new Set(); let dropTrack = false;
     const files = (idea.files || []);
+    const catSel = new Set(typeof ideaCatsOf === 'function' ? ideaCatsOf(idea) : []), catWas = Array.from(catSel).sort().join('|');
     const html = '<label class="field-label" for="edit-text">Текст</label><textarea id="edit-text" rows="6"></textarea>' +
         '<label class="field-label" for="edit-tags" style="margin-top:12px">Дополнительные хештеги (через пробел)</label><input type="text" id="edit-tags" placeholder="#идея #работа">' +
         '<label class="field-label" for="edit-event" style="margin-top:12px">Дата события (необязательно — по ней идею тоже можно найти)</label><input type="date" id="edit-event">' +
+        (typeof ideaCatNames === 'function' ? '<span class="field-label" style="margin-top:12px">Категории (в какие папки положить)</span><div class="chips" id="edit-cats"></div>' : '') +
         ((files.length || idea.track) ? '<div class="edit-attach" id="edit-attach"></div>' : '');
     const sheet = openSheet({
         title: 'Изменить идею', html,
@@ -304,6 +322,10 @@ function editIdea(id) {
             idea.files = files.filter(f => !removed.has(f.id));
             if (dropTrack && idea.track) { if (idea.track.coverId) await BlobDB.del(idea.track.coverId); idea.track = null; }
             idea.text = text; idea.tags = tags; idea.updatedAt = Date.now();
+            if (catBox) {   // категории: если вы изменили выбор — заметка помечается «вручную», и ИИ её больше не трогает
+                const now = ideaCatNames().filter(n => catSel.has(n));
+                if (now.slice().sort().join('|') !== catWas) { idea.cats = now; idea.catSrc = 'user'; }
+            }
             const ev = $('#edit-event', sheet.el).value;
             if (/^\d{4}-\d{2}-\d{2}$/.test(ev)) idea.eventDate = ev; else delete idea.eventDate;
             saveIdeas(); renderIdeas(); toast('Изменения сохранены');
@@ -312,6 +334,12 @@ function editIdea(id) {
     $('#edit-text', sheet.el).value = idea.text || '';
     $('#edit-tags', sheet.el).value = extra.map(t => '#' + t).join(' ');
     $('#edit-event', sheet.el).value = /^\d{4}-\d{2}-\d{2}$/.test(idea.eventDate || '') ? idea.eventDate : '';
+    const catBox = $('#edit-cats', sheet.el);
+    if (catBox) {
+        const paintCats = () => { catBox.innerHTML = ideaCatNames().map(n => '<button type="button" class="chip' + (catSel.has(n) ? ' is-on' : '') + '" data-c="' + esc(n) + '" aria-pressed="' + catSel.has(n) + '">' + ic('folder') + esc(n) + '</button>').join(''); };
+        paintCats();
+        catBox.addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (!b) return; const n = b.dataset.c; if (catSel.has(n)) catSel.delete(n); else catSel.add(n); paintCats(); });
+    }
     const box = $('#edit-attach', sheet.el);
     if (box) {
         const paint = () => {
@@ -418,7 +446,11 @@ function initIdeas() {
 
     // поиск
     const si = $('#idea-search');
-    si.addEventListener('input', debounce(() => { ideaQuery = si.value; ideasShown = 40; renderIdeas(); }, 120));
+    si.addEventListener('input', debounce(() => {
+        const was = queryTokens(ideaQuery).length > 0;
+        ideaQuery = si.value; ideasShown = 40; renderIdeas();
+        if (!was && queryTokens(ideaQuery).length && window.scrollY > 80) window.scrollTo({ top: 0, behavior: 'smooth' });   // результаты стоят прямо под полем поиска — подвинуть страницу к ним
+    }, 120));
     $('#idea-search-clear').addEventListener('click', () => setQuery('', true));
     const di = $('#idea-date-input');
     di.addEventListener('click', () => { try { if (di.showPicker) di.showPicker(); } catch (e) {} });
@@ -429,11 +461,12 @@ function initIdeas() {
     });
     $('#tagbar').addEventListener('click', e => { const b = e.target.closest('[data-q-tag]'); if (b) toggleQueryToken('#' + b.dataset.qTag); });
 
-    // список заметок
-    $('#ideas-list').addEventListener('click', e => {
+    // заметки: один обработчик на результаты поиска и на список внутри папки
+    const onNoteClick = e => {
         const t = e.target;
-        const tag = t.closest('[data-tag]'), edit = t.closest('[data-edit]'), del = t.closest('[data-del]'), lb = t.closest('[data-lb]'), fl = t.closest('[data-file]'), dt = t.closest('[data-date]');
+        const tag = t.closest('[data-tag]'), edit = t.closest('[data-edit]'), del = t.closest('[data-del]'), lb = t.closest('[data-lb]'), fl = t.closest('[data-file]'), dt = t.closest('[data-date]'), cat = t.closest('[data-cat]');
         if (tag) { const tok = '#' + tag.dataset.tag; if (!queryTokens(ideaQuery).includes(tok)) setQuery((ideaQuery ? ideaQuery + ' ' : '') + tok); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+        else if (cat) { if (typeof ideaOpenCat === 'function') ideaOpenCat(cat.dataset.cat); }
         else if (edit) editIdea(edit.dataset.edit);
         else if (del) deleteIdea(del.dataset.del);
         else if (lb) {
@@ -442,7 +475,10 @@ function initIdeas() {
         } else if (fl) { const idea = ideas.find(i => i.id === fl.closest('.note').dataset.id); const f = (idea.files || []).find(x => x.id === fl.dataset.file); openStoredFile(fl.dataset.file, f && f.name); }
         else if (dt) { setQuery(dt.dataset.date); window.scrollTo({ top: 0, behavior: 'smooth' }); }
         else if (t.closest('#ideas-more')) { ideasShown += 40; renderIdeas(); }
-    });
+    };
+    $('#ideas-list').addEventListener('click', onNoteClick);
+    $('#search-results').addEventListener('click', onNoteClick);
+    if (typeof initIdeaFolders === 'function') initIdeaFolders();
     $('#ideas-pdf').addEventListener('click', openIdeasPdfSheet);
 
     // подпись «кто и когда» в блоке

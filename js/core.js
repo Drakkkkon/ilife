@@ -7,7 +7,7 @@
 //   IndexedDB     — вложения: картинки, музыка, голосовые записи, файлы (база «ilife-media»).
 // =====================================================================================================
 
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.6.0';
 
 // ---------- Хранилище настроек ----------
 const LS = {
@@ -224,17 +224,52 @@ const BlobDB = (function () {
             if (!db) { mem.clear(); return; }
             try { await tx(db, 'readwrite', s => s.clear()); } catch (e) {}
         },
+        // Обычная или «лёгкая» (превью) ссылка. Запись может быть без оригинала (blob = null) — после очистки кеша или
+        // когда на этом устройстве скачано только превью; тогда для оригинала возвращается пустая строка.
         async url(id, variant) {
             const key = id + '|' + (variant || '');
             if (urls.has(key)) return urls.get(key);
             const rec = await this.get(id);
             if (!rec) return '';
-            const b = variant === 'thumb' && rec.thumb ? rec.thumb : rec.blob;
+            const b = variant === 'thumb' ? (rec.thumb || rec.blob) : rec.blob;
+            if (!b) return '';
             const u = URL.createObjectURL(b);
             urls.set(key, u);
             return u;
         },
         revoke(id) { Array.from(urls.keys()).forEach(k => { if (k.startsWith(id + '|')) { URL.revokeObjectURL(urls.get(k)); urls.delete(k); } }); },
+        // Что есть на устройстве, не читая сами файлы: Map id → { full: есть ли оригинал, thumb: есть ли превью, size }
+        async index() {
+            const db = await open(); const out = new Map();
+            if (!db) { mem.forEach((r, id) => out.set(id, { full: !!r.blob, thumb: !!r.thumb, size: Number(r.size) || 0 })); return out; }
+            return new Promise(resolve => {
+                try {
+                    const req = db.transaction('blobs', 'readonly').objectStore('blobs').openCursor();
+                    req.onsuccess = () => { const c = req.result; if (!c) { resolve(out); return; } const r = c.value; out.set(c.key, { full: !!r.blob, thumb: !!r.thumb, size: Number(r.size) || 0 }); c.continue(); };
+                    req.onerror = () => resolve(out);
+                } catch (e) { resolve(out); }
+            });
+        },
+        // Положить или заменить только превью (оригинал, если он есть, остаётся)
+        async putThumb(id, thumb, meta) {
+            const rec = (await this.get(id)) || Object.assign({ id, blob: null, size: 0 }, meta || {});
+            rec.thumb = thumb; this.revoke(id);
+            await this.put(rec);
+        },
+        // Положить или заменить оригинал (превью, если оно есть, остаётся)
+        async putFull(id, blob, meta) {
+            const rec = (await this.get(id)) || { id, thumb: null };
+            Object.assign(rec, meta || {}, { id, blob, size: blob.size });
+            this.revoke(id);
+            await this.put(rec);
+        },
+        // Убрать оригинал с устройства; превью остаётся (если dropThumb — убирается и оно, и запись целиком)
+        async dropFull(id, dropThumb) {
+            const rec = await this.get(id); if (!rec) return false;
+            this.revoke(id);
+            if (dropThumb || !rec.thumb) { await this.del(id); return true; }
+            rec.blob = null; await this.put(rec); return true;
+        },
         isBroken() { return broken; }
     };
 })();
