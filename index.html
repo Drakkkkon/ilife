@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ru" data-layout="compact" data-mode="light" data-variant="violet">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>iLife</title>
+    <meta name="description" content="iLife — личное приложение: идеи с хештегами, дела и покупки, кино (список для просмотра, распознавание скриншотов), настройки.">
+    <meta name="theme-color" content="#fef7ff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="iLife">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" href="images/icon-192.png">
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+    <!-- Дизайн «Android» (Material 3 Expressive), перенесён из My Money 4.8.1; размеры в rem (масштаб в Настройках) -->
+    <link rel="stylesheet" href="css/android.css">
+    <link rel="stylesheet" href="css/app.css">
+    <!-- Шрифт Android (Pixel): Google Sans Flex. Если не загрузится (нет интернета) — Roboto и системный -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Ядро: значки, настройки, тема и масштаб применяются до отрисовки, чтобы не было мигания -->
+    <script src="js/icons.js"></script>
+    <script src="js/core.js"></script>
+    <script src="js/theme.js"></script>
+</head>
+<body>
+
+    <!-- ЗАСТАВКА (экран блокировки): часы и погода Алматы, ползунок «разблокируйте» -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <h1 id="splash-greeting" style="font-size:24px;font-weight:400">Здравствуйте!</h1>
+            <div class="splash-center">
+                <div id="splash-time">00:00</div>
+                <div id="splash-date">&nbsp;</div>
+                <div id="splash-weather"><i data-i="thermostat"></i><span>Алматы: загружаем погоду…</span></div>
+            </div>
+        </div>
+        <div class="slider-container" id="slider-container" role="slider" aria-label="Проведите вправо, чтобы разблокировать" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0">
+            <div class="slider-track"><span class="slider-text">разблокируйте</span></div>
+            <div class="slider-thumb" id="slider-thumb"><i data-i="chevron_right"></i></div>
+        </div>
+    </div>
+
+    <div class="app-wrapper" id="app">
+
+        <!-- Боковая панель (ПК, планшет) -->
+        <aside class="sidebar" aria-label="Разделы">
+            <div class="sidebar-header"><img class="app-logo" src="images/logo.png" alt=""><h2>iLife</h2></div>
+            <nav class="sidebar-nav">
+                <button type="button" data-tab="ideas"><i data-i="lightbulb"></i><span>Идеи</span></button>
+                <button type="button" data-tab="todo"><i data-i="checklist"></i><span>Дела</span></button>
+                <button type="button" data-tab="movies"><i data-i="movie"></i><span>Кино</span></button>
+                <button type="button" data-tab="settings"><i data-i="settings"></i><span>Настройки</span></button>
+            </nav>
+            <div class="sidebar-foot">iLife · версия <span class="app-ver">1.2.0</span></div>
+        </aside>
+
+        <div class="main-wrapper">
+        <main>
+
+            <!-- ===================== ИДЕИ ===================== -->
+            <section id="ideas" class="tab" data-tab="ideas">
+                <!-- Поиск — в самом верху: по словам, #хештегам и датам -->
+                <div class="searchwrap">
+                    <div class="searchbar">
+                        <i data-i="search"></i>
+                        <input type="search" id="idea-search" placeholder="Поиск: слова, #хештеги, даты…" autocomplete="off" enterkeyhint="search" aria-label="Поиск по идеям: слова, хештеги, даты">
+                        <button type="button" class="icon-btn" id="idea-search-clear" aria-label="Очистить поиск" hidden><i data-i="close"></i></button>
+                        <span class="date-pick"><button type="button" class="icon-btn" tabindex="-1" aria-hidden="true"><i data-i="calendar_today"></i></button><input type="date" id="idea-date-input" aria-label="Найти по дате" title="Найти по дате"></span>
+                    </div>
+                </div>
+                <div class="tagbar" id="tagbar" aria-label="Хештеги"></div>
+                <p class="hint search-status" id="search-status" aria-live="polite"></p>
+
+                <header class="page-head">
+                    <h1 class="page-title">Идеи</h1>
+                    <button type="button" class="btn" id="ideas-pdf" title="Сохранить идеи в PDF"><i data-i="picture_as_pdf"></i>PDF</button>
+                </header>
+
+                <!-- Единственный блок: поле ввода, картинки, музыка, диктофон, файлы, хештеги, Spotify -->
+                <div class="card composer" id="composer">
+                    <h3 class="card-title"><span class="ico"><i data-i="lightbulb"></i></span><span class="ttl">Новая идея</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <textarea id="idea-text" rows="4" placeholder="Что у вас на уме? Хештеги пишите прямо в тексте: #идея #работа" aria-label="Текст идеи"></textarea>
+                        <div class="tag-row chips" id="draft-tags"></div>
+                        <div class="tag-input-row">
+                            <input type="text" id="idea-tag-input" placeholder="Добавить хештег" maxlength="40" autocomplete="off" aria-label="Добавить хештег">
+                            <button type="button" class="btn" id="idea-tag-add"><i data-i="tag"></i>Добавить</button>
+                        </div>
+                        <div class="tag-sugg" id="tag-sugg"></div>
+
+                        <div class="attach-row">
+                            <button type="button" class="btn" data-attach="image"><i data-i="image"></i>Картинки</button>
+                            <button type="button" class="btn" data-attach="audio"><i data-i="audiotrack"></i>Музыка</button>
+                            <button type="button" class="btn" data-attach="voice"><i data-i="mic"></i>Диктофон</button>
+                            <button type="button" class="btn" data-attach="file"><i data-i="attach_file"></i>Файлы</button>
+                            <button type="button" class="btn btn-tertiary" id="btn-spotify" title="Название песни, исполнитель и обложка из Spotify"><i data-i="headphones"></i>Spotify</button>
+                        </div>
+                        <input type="file" id="file-image" accept="image/*" multiple hidden>
+                        <input type="file" id="file-audio" accept="audio/*,.mp3,.m4a,.aac,.flac,.ogg,.oga,.opus,.wav,.wma" multiple hidden>
+                        <input type="file" id="file-any" multiple hidden>
+
+                        <div class="recorder" id="recorder" hidden>
+                            <span class="rec-dot"></span><span class="rec-time" id="rec-time">0:00</span>
+                            <span class="rec-bars" id="rec-bars"></span>
+                            <button type="button" class="icon-btn" id="rec-cancel" aria-label="Отменить запись"><i data-i="delete"></i></button>
+                            <button type="button" class="icon-btn is-recording" id="rec-stop" aria-label="Остановить и добавить запись"><i data-i="stop"></i></button>
+                        </div>
+                        <div class="draft-attachments" id="draft-attachments"></div>
+
+                        <div class="composer-foot">
+                            <span class="byline"><i data-i="person"></i><span id="composer-author">Александр</span> · <span id="composer-now"></span></span>
+                            <button type="button" class="btn btn-primary" id="idea-save" disabled><i data-i="check"></i>Сохранить</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="list-head"><h2>Заметки</h2><span class="count" id="ideas-count"></span></div>
+                <div id="ideas-list"></div>
+            </section>
+
+            <!-- ===================== ДЕЛА ===================== -->
+            <section id="todo" class="tab" data-tab="todo">
+                <header class="page-head">
+                    <h1 class="page-title">Дела</h1>
+                    <button type="button" class="btn" id="todo-pdf" title="Сохранить дела и покупки в PDF"><i data-i="picture_as_pdf"></i>PDF</button>
+                </header>
+
+                <!-- Список покупок из My Money, расширенный до списка дел -->
+                <div class="card todo-card" id="todo-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="checklist"></i></span><span class="ttl">Список дел и покупок</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <div class="seg" id="todo-mode" role="group" aria-label="Что добавляем">
+                            <button type="button" data-mode="buy" class="is-on"><i data-i="shopping_cart"></i>Покупки</button>
+                            <button type="button" data-mode="task"><i data-i="task_alt"></i>Дела</button>
+                        </div>
+                        <p class="hint" id="todo-hint" style="margin-bottom:10px"></p>
+                        <textarea id="todo-input" rows="3" aria-label="Что добавить в список"></textarea>
+                        <div class="todo-preview" id="todo-preview"></div>
+                        <div class="add-row">
+                            <input type="text" id="todo-store" list="stores" placeholder="Магазин (необязательно)" maxlength="40" aria-label="Магазин">
+                            <input type="date" id="todo-due" aria-label="Срок дела (необязательно)" title="Срок (необязательно)" hidden>
+                            <button type="button" class="btn" id="todo-paste" title="Вставить из буфера обмена"><i data-i="content_paste"></i>Вставить</button>
+                            <button type="button" class="btn btn-primary" id="todo-add"><i data-i="add"></i>В список</button>
+                        </div>
+                        <datalist id="stores"></datalist>
+
+                        <div class="seg todo-filter" id="todo-filter" role="group" aria-label="Показать">
+                            <button type="button" data-filter="all" class="is-on">Все <span class="cnt">0</span></button>
+                            <button type="button" data-filter="buy">Покупки <span class="cnt">0</span></button>
+                            <button type="button" data-filter="task">Дела <span class="cnt">0</span></button>
+                        </div>
+                        <p class="hint todo-summary" id="todo-summary"></p>
+                        <div id="todo-list"></div>
+                        <div class="btn-group" style="margin-top:16px">
+                            <button type="button" class="btn" id="todo-copy"><i data-i="content_copy"></i>Скопировать список</button>
+                            <button type="button" class="btn" id="todo-clear"><i data-i="remove_done"></i>Убрать выполненное</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ===================== КИНО ===================== -->
+            <section id="movies" class="tab" data-tab="movies">
+                <!-- Поиск фильма или сериала по названию (база TMDB) -->
+                <div class="searchwrap">
+                    <div class="searchbar">
+                        <i data-i="search"></i>
+                        <input type="search" id="movie-search" placeholder="Найти фильм или сериал…" autocomplete="off" enterkeyhint="search" aria-label="Найти фильм или сериал по названию">
+                        <button type="button" class="icon-btn" id="movie-search-clear" aria-label="Очистить поиск" hidden><i data-i="close"></i></button>
+                    </div>
+                </div>
+                <div class="mv-results" id="movie-results" hidden aria-live="polite"></div>
+
+                <header class="page-head">
+                    <h1 class="page-title">Кино</h1>
+                    <button type="button" class="btn" id="movies-pdf" title="Сохранить списки фильмов в PDF"><i data-i="picture_as_pdf"></i>PDF</button>
+                </header>
+
+                <div class="mv-banner" id="movies-banner" hidden>
+                    <i data-i="key"></i>
+                    <div class="tx"><b>Подключите базу фильмов</b><span>Чтобы подтягивать обложки, оценки, режиссёра и актёров и искать по названию, нужен бесплатный ключ TMDB. Это делается один раз.</span></div>
+                    <button type="button" class="btn btn-primary" data-goto-settings><i data-i="settings"></i>Настроить</button>
+                </div>
+
+                <!-- Что смотрю сейчас -->
+                <div class="card" id="movies-watching-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="tv"></i></span><span class="ttl">Смотрю сейчас</span><span class="badge" id="movies-watching-n"></span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body"><div id="movies-watching"></div></div>
+                </div>
+
+                <!-- Распознавание скриншотов (js/recognize.js) -->
+                <div class="card" id="movies-scan-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="image_search"></i></span><span class="ttl">Распознать скриншоты</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <p class="hint" style="margin-bottom:0.75rem">Загрузите скриншоты — афишу, подборку, страницу сервиса или кадр. Приложение прочитает текст, найдёт фильмы в базе и предложит список: останется отметить нужные.</p>
+                        <div class="chips" id="scan-engines" style="margin-bottom:0.75rem"></div>
+                        <div class="scan-drop" id="scan-drop">
+                            <i data-i="add_photo_alternate"></i>
+                            <b>Перетащите скриншоты сюда</b>
+                            <span class="hint">или вставьте из буфера обмена (Ctrl+V). Можно сразу несколько, до 30.</span>
+                            <button type="button" class="btn btn-primary" id="scan-pick"><i data-i="image"></i>Выбрать скриншоты</button>
+                        </div>
+                        <input type="file" id="scan-file" accept="image/*" multiple hidden>
+                        <div class="switch-row" id="scan-ai-row" hidden><div class="tx"><b>Звать ИИ, если по тексту не нашлось</b><span class="sub">Картинка уйдёт в сервис ИИ из Настроек (Gemini или Claude). Выключите, если не хотите никуда отправлять скриншоты</span></div><input type="checkbox" class="switch" id="scan-ai-auto" aria-label="Подключать ИИ автоматически"></div>
+                        <div id="scan-list"></div>
+                        <div class="btn-group" id="scan-foot" style="margin-top:0.75rem" hidden>
+                            <button type="button" class="btn" id="scan-clear"><i data-i="delete"></i>Очистить</button>
+                            <button type="button" class="btn btn-primary" id="scan-add" disabled><i data-i="playlist_add"></i>Добавить выбранные<span id="scan-add-n"></span></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Список для просмотра -->
+                <div class="card" id="movies-queue-card">
+                    <h3 class="card-title" id="movies-queue-head"><span class="ico"><i data-i="bookmark"></i></span><span class="ttl">Список для просмотра</span><span class="badge" id="movies-queue-n"></span>
+                        <button type="button" class="icon-btn" id="movies-refresh" aria-label="Обновить оценки у всех фильмов" title="Обновить оценки и данные" hidden><i data-i="refresh"></i></button>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <div class="seg" id="movies-sort" role="group" aria-label="Порядок" hidden>
+                            <button type="button" data-sort="new">Новые</button>
+                            <button type="button" data-sort="rating">По оценке</button>
+                            <button type="button" data-sort="year">По году</button>
+                            <button type="button" data-sort="title">А–Я</button>
+                        </div>
+                        <div id="movies-queue"></div>
+                    </div>
+                </div>
+
+                <!-- Просмотрено -->
+                <div class="card" id="movies-watched-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="done_all"></i></span><span class="ttl">Просмотрено</span><span class="badge" id="movies-watched-n"></span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body"><div id="movies-watched"></div></div>
+                </div>
+            </section>
+
+            <!-- ===================== НАСТРОЙКИ ===================== -->
+            <section id="settings" class="tab" data-tab="settings">
+                <header class="page-head"><h1 class="page-title">Настройки</h1></header>
+
+                <!-- Google: вход и синхронизация с Google Диском (js/gdrive.js) -->
+                <div class="card" id="google-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="add_to_drive"></i></span><span class="ttl">Google Диск</span><span class="badge" id="g-badge">Не подключён</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <div class="google-state"><span class="avatar" id="g-avatar"><i data-i="person"></i></span><div id="g-state-text"></div></div>
+
+                        <!-- Пока аккаунт не подключён -->
+                        <div id="g-out">
+                            <p class="hint" style="margin-bottom:12px">Войдите через Google, и идеи, дела, цены, фильмы и вложения сохранятся на вашем Google Диске (папка «iLife») и появятся на других устройствах — на телефоне, планшете и ПК.</p>
+                            <label class="field-label" for="g-client">Client ID из Google Cloud</label>
+                            <input type="text" id="g-client" placeholder="123456789012-abc….apps.googleusercontent.com" autocomplete="off" spellcheck="false" autocapitalize="off">
+                            <p class="hint" id="g-client-src" style="margin-top:6px"></p>
+                            <label class="field-label" style="margin-top:14px">Адрес сайта — впишите его в Google Cloud (Authorized JavaScript origins)</label>
+                            <div class="copy-field"><span class="code" id="g-origin"></span><button type="button" class="icon-btn" id="g-copy" aria-label="Скопировать адрес"><i data-i="content_copy"></i></button></div>
+                            <p class="hint" id="g-problem" style="margin-top:6px"></p>
+                            <div class="btn-group" style="margin-top:14px">
+                                <button type="button" class="btn btn-primary" id="google-signin"><i data-i="login"></i>Войти через Google</button>
+                            </div>
+                        </div>
+
+                        <!-- Когда аккаунт подключён -->
+                        <div id="g-in" hidden>
+                            <p class="hint" id="g-status" role="status" aria-live="polite" style="margin-bottom:12px"></p>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-primary" id="google-sync"><i data-i="sync"></i>Синхронизировать сейчас</button>
+                                <button type="button" class="btn btn-primary" id="g-reconnect" hidden><i data-i="login"></i>Продолжить синхронизацию</button>
+                                <a class="btn" id="g-folder" href="#" target="_blank" rel="noopener noreferrer" hidden><i data-i="folder"></i>Открыть папку на Диске</a>
+                                <button type="button" class="btn" id="g-signout"><i data-i="logout"></i>Выйти</button>
+                            </div>
+                            <div class="switch-row" style="margin-top:8px"><div class="tx"><b>Автоматическая синхронизация</b><span class="sub">Сразу после изменений, при открытии и раз в минуту, пока приложение на экране</span></div><input type="checkbox" class="switch" id="google-auto" aria-label="Автоматическая синхронизация"></div>
+                            <div class="switch-row"><div class="tx"><b>Вложения тоже на Диск</b><span class="sub">Картинки, музыка, голосовые записи и файлы (до 50 МБ каждый). Без них на других устройствах будут только тексты</span></div><input type="checkbox" class="switch" id="google-media" aria-label="Синхронизировать вложения"></div>
+                        </div>
+
+                        <details class="fold">
+                            <summary><i data-i="help"></i>Как подключить — пошагово</summary>
+                            <div class="fold-body">
+                                <ol class="steps">
+                                    <li>Откройте <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a> под своим аккаунтом Google. Вверху выберите проект (можно тот же, что у My Money) или создайте новый.</li>
+                                    <li><b>APIs &amp; Services → Library</b> → найдите <b>Google Drive API</b> → <b>Enable</b>.</li>
+                                    <li><b>Google Auth Platform</b> (или «OAuth consent screen»): тип <b>External</b>, статус <b>Testing</b>; в <b>Test users</b> добавьте свой Gmail. В <b>Data access</b> добавьте права <b>…/auth/drive.file</b>, <b>openid</b>, <b>email</b>, <b>profile</b>.</li>
+                                    <li><b>Clients → Create client</b> → тип <b>Web application</b>. В <b>Authorized JavaScript origins</b> нажмите <b>Add URI</b> и вставьте адрес из поля выше (только начало адреса: <code>https://ЛОГИН.github.io</code>, без названия репозитория и без слэша в конце). Если My Money уже на том же github.io, ничего добавлять не нужно. Redirect URI не нужен. <b>Create</b>.</li>
+                                    <li>Скопируйте <b>Client ID</b> (вида <code>123456789012-abc….apps.googleusercontent.com</code>) и вставьте в поле выше. Он не секретный. Чтобы он сразу был на всех устройствах, впишите его в файл <code>js/config.js</code> на GitHub (образец — <code>js/config.example.js</code>).</li>
+                                    <li>Нажмите <b>«Войти через Google»</b>. Google скажет «Приложение не проверено» — это нормально для личного приложения: <b>Дополнительно → Перейти</b> и отметьте доступ к Google Диску. Если окно не открылось — разрешите всплывающие окна для сайта.</li>
+                                </ol>
+                                <p class="hint">Приложение видит на Диске только свои файлы (доступ drive.file). Вход Google действует 1 час: потом нажмите «Продолжить синхронизацию» — изменения до этого сохраняются на устройстве и не теряются. Внутри APK-обёртки вход Google не работает — пользуйтесь Chrome или установите сайт на главный экран.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Spotify -->
+                <div class="card" id="spotify-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="headphones"></i></span><span class="ttl">Spotify</span><span class="badge" id="sp-badge">Не подключён</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <div class="google-state"><span class="avatar"><i data-i="music_note"></i></span><div id="sp-state-text"></div></div>
+                        <label class="field-label" for="sp-client">Client ID приложения Spotify</label>
+                        <input type="text" id="sp-client" placeholder="32 символа из developer.spotify.com" autocomplete="off" spellcheck="false" autocapitalize="off">
+                        <label class="field-label" style="margin-top:14px">Redirect URI — впишите его в настройках приложения Spotify</label>
+                        <div class="copy-field"><span class="code" id="sp-redirect"></span><button type="button" class="icon-btn" id="sp-copy" aria-label="Скопировать адрес"><i data-i="content_copy"></i></button></div>
+                        <p class="hint" id="sp-problem" style="margin-top:6px"></p>
+                        <div class="btn-group" style="margin-top:14px">
+                            <button type="button" class="btn btn-primary" id="sp-connect"><i data-i="login"></i>Подключить Spotify</button>
+                            <button type="button" class="btn" id="sp-disconnect" hidden><i data-i="logout"></i>Отключить</button>
+                        </div>
+                        <details class="fold">
+                            <summary><i data-i="help"></i>Как подключить — пошагово</summary>
+                            <div class="fold-body">
+                                <ol class="steps">
+                                    <li><b>Premium у владельца приложения.</b> С февраля 2026 Spotify разрешает приложения в режиме разработки только владельцам с подпиской Premium (и не более 5 пользователей на приложение). Для личного пользования этого достаточно: владелец — вы.</li>
+                                    <li>Откройте <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">developer.spotify.com/dashboard</a>, войдите своим аккаунтом Spotify и нажмите <b>Create app</b>.</li>
+                                    <li>Заполните: <b>App name</b> — iLife, <b>App description</b> — личные заметки. В поле <b>Redirect URI</b> вставьте адрес из поля выше (кнопка «копировать») и нажмите <b>Add</b>. Адрес должен совпадать до символа: <span class="code">https://</span>, имя сайта, <b>слэш в конце</b>. «localhost» Spotify не принимает; для проверки на компьютере используйте <span class="code">http://127.0.0.1:8080/</span>. В списке «Which API/SDKs» отметьте <b>Web API</b>, согласитесь с условиями и нажмите <b>Save</b>.</li>
+                                    <li>Откройте созданное приложение → <b>Settings</b> и скопируйте <b>Client ID</b>. Client Secret не нужен — никуда его не вставляйте.</li>
+                                    <li>В том же приложении откройте <b>User Management</b>: в режиме разработки войти могут только добавленные люди. Если вы слушаете музыку под тем же аккаунтом, под которым создали приложение, ничего делать не нужно; иначе добавьте имя и e-mail своего аккаунта Spotify.</li>
+                                    <li>Вернитесь сюда, вставьте Client ID и нажмите <b>«Подключить Spotify»</b>. Откроется страница Spotify — войдите и нажмите <b>Agree</b> (приложение получает только право читать, что играет и что вы недавно слушали). Вы вернётесь в iLife, статус станет «Подключён».</li>
+                                    <li><b>Как пользоваться.</b> На странице «Идеи» нажмите кнопку <b>Spotify</b>: «Взять то, что играет сейчас» подставит песню, исполнителя, альбом и обложку; ниже — недавно слушанное и поиск по Spotify. Трек сохранится в заметке вместе с обложкой.</li>
+                                </ol>
+                                <p class="hint">Токены хранятся только на этом устройстве, в браузере; отключить доступ можно кнопкой «Отключить» или на странице <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener noreferrer">spotify.com/account/apps</a>. Если приложение открыто внутри APK-обёртки, подключайтесь в Chrome: обёртка и браузер хранят токены отдельно.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Кино: ключи сервисов с фильмами и оценками (js/movies.js, js/moviedb.js) -->
+                <div class="card" id="movies-cfg-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="movie"></i></span><span class="ttl">Кино: базы и оценки</span><span class="badge" id="mvc-badge">Не настроено</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <p class="hint" style="margin-bottom:0.875rem">Обложки, режиссёры, актёры и оценки берутся из бесплатных баз. Ключи вводятся один раз на каждом устройстве и хранятся только в этом браузере: в копию данных и на Google Диск они не попадают.</p>
+
+                        <label class="field-label" for="mvc-tmdb">TMDB — поиск, обложки, режиссёр, актёры (нужен)</label>
+                        <input type="password" id="mvc-tmdb" data-secret placeholder="API Key или API Read Access Token" autocomplete="off" spellcheck="false" autocapitalize="off">
+
+                        <label class="field-label" for="mvc-omdb" style="margin-top:0.875rem">OMDb — оценки IMDb, Rotten Tomatoes, Metacritic</label>
+                        <input type="password" id="mvc-omdb" data-secret placeholder="ключ из письма (8 символов)" autocomplete="off" spellcheck="false" autocapitalize="off">
+
+                        <label class="field-label" for="mvc-kp" style="margin-top:0.875rem">ПоискКино — оценка Кинопоиска</label>
+                        <input type="password" id="mvc-kp" data-secret placeholder="ключ от бота @poiskkinodev_bot" autocomplete="off" spellcheck="false" autocapitalize="off">
+
+                        <label class="field-label" for="mvc-ai" style="margin-top:0.875rem">ИИ — узнаёт фильм по кадру или афише без названия (по желанию)</label>
+                        <select id="mvc-ai" aria-label="Сервис ИИ">
+                            <option value="none">Не использовать</option>
+                            <option value="gemini">Google Gemini</option>
+                            <option value="claude">Anthropic Claude</option>
+                        </select>
+                        <div id="mvc-ai-fields" hidden>
+                            <label class="field-label" for="mvc-aikey" style="margin-top:0.75rem">Ключ ИИ</label>
+                            <input type="password" id="mvc-aikey" data-secret placeholder="ключ сервиса ИИ" autocomplete="off" spellcheck="false" autocapitalize="off">
+                            <label class="field-label" for="mvc-aimodel" style="margin-top:0.75rem">Название модели (если пусто — по умолчанию)</label>
+                            <input type="text" id="mvc-aimodel" placeholder="gemini-3.8-flash" autocomplete="off" spellcheck="false" autocapitalize="off">
+                            <p class="hint" id="mvc-ai-link" style="margin-top:0.5rem"></p>
+                            <div class="switch-row"><div class="tx"><b>Звать ИИ автоматически</b><span class="sub">Если по тексту на скриншоте фильм не нашёлся. Картинка при этом отправляется в сервис ИИ</span></div><input type="checkbox" class="switch" id="mvc-aiauto" aria-label="Звать ИИ автоматически"></div>
+                        </div>
+
+                        <div class="btn-group" style="margin-top:1rem">
+                            <button type="button" class="btn btn-primary" id="mvc-test"><i data-i="sync"></i>Проверить подключение</button>
+                            <button type="button" class="btn" id="mvc-show"><i data-i="visibility"></i>Показать ключи</button>
+                        </div>
+                        <div id="mvc-test-out" class="mv-test-out" aria-live="polite"></div>
+
+                        <details class="fold">
+                            <summary><i data-i="help"></i>Где взять ключи — пошагово</summary>
+                            <div class="fold-body">
+                                <ol class="steps">
+                                    <li><b>TMDB (бесплатно, для личного пользования).</b> Зарегистрируйтесь на <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">themoviedb.org</a>, откройте <b>Settings → API</b> (<a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">прямая ссылка</a>) и нажмите <b>Create</b>. Тип — <b>Developer</b>, назначение — личное некоммерческое (название — iLife, описание — «личный список фильмов»). Скопируйте <b>API Key</b> (32 символа) или длинный <b>API Read Access Token</b> — подойдёт любой — и вставьте в поле выше.</li>
+                                    <li><b>OMDb (бесплатно, 1000 запросов в сутки).</b> Откройте <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener noreferrer">omdbapi.com/apikey.aspx</a>, выберите <b>FREE</b>, укажите e-mail. На почту придёт письмо: <b>обязательно нажмите в нём ссылку активации</b> — без этого ключ не работает. Ключ из письма вставьте в поле.</li>
+                                    <li><b>ПоискКино (бесплатно, 200 запросов в сутки).</b> В Telegram откройте бота <b>@poiskkinodev_bot</b> и получите ключ (сайт сервиса — <a href="https://poiskkino.dev" target="_blank" rel="noopener noreferrer">poiskkino.dev</a>). Вставьте в поле. Это даёт оценку Кинопоиска; без него она просто не показывается.</li>
+                                    <li><b>ИИ — по желанию.</b> Нужен, только если на скриншоте нет названия (кадр из фильма, афиша с рисованными буквами). Ключ Gemini: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a> (есть бесплатный лимит). Ключ Claude: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a> (платно, копейки за снимок). Если сервис переименует модель и появится ошибка «модель не найдена», впишите актуальное название в поле «Название модели».</li>
+                                    <li>Нажмите <b>«Проверить подключение»</b>: напротив каждого сервиса появится «работает» или причина ошибки. После этого на странице «Кино» поиск, обложки, оценки и распознавание заработают.</li>
+                                </ol>
+                                <p class="hint">Приложение ходит в эти сервисы напрямую из вашего браузера, без своего сервера. Распознавание текста на скриншоте (Tesseract) идёт на устройстве: при первом запуске скачивается модуль и словари, около 15 МБ, дальше берутся из кеша браузера. Подключённый ИИ получает только те картинки, которые вы отправили на распознавание.</p>
+                                <p class="hint" style="margin-top:0.5rem">Данные о фильмах предоставлены TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Рейтинги IMDb, Rotten Tomatoes и Metacritic — через OMDb, Кинопоиска — через ПоискКино.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Масштаб -->
+                <div class="card" id="zoom-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="zoom_in"></i></span><span class="ttl">Масштаб</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <div class="zoom-val"><b id="zoom-val">100%</b><span class="hint" id="zoom-mode"></span></div>
+                        <div class="zoom-row">
+                            <button type="button" class="icon-btn tonal" id="zoom-minus" aria-label="Уменьшить"><i data-i="zoom_out"></i></button>
+                            <input type="range" id="zoom-range" min="50" max="200" step="5" value="100" aria-label="Масштаб интерфейса">
+                            <button type="button" class="icon-btn tonal" id="zoom-plus" aria-label="Увеличить"><i data-i="zoom_in"></i></button>
+                        </div>
+                        <div class="btn-group">
+                            <button type="button" class="btn" id="zoom-auto"><i data-i="fullscreen"></i>Под экран</button>
+                            <button type="button" class="btn" id="zoom-100">100%</button>
+                        </div>
+                        <p class="hint zoom-note">От 50% до 200%: увеличивает или уменьшает текст и все элементы. «Под экран» подбирает масштаб по ширине экрана устройства (телефон — около 100%, большой монитор — крупнее). Выбор запоминается на этом устройстве.</p>
+                    </div>
+                </div>
+
+                <!-- Темы Android -->
+                <div class="card" id="look-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="palette"></i></span><span class="ttl">Темы оформления Android</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <div class="theme-grid" id="theme-grid"></div>
+                        <div class="sp-section" style="margin-top:20px"><i data-i="text_fields"></i> Шрифт</div>
+                        <div class="font-grid" id="font-grid"></div>
+                    </div>
+                </div>
+
+                <!-- Профиль -->
+                <div class="card" id="profile-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="person"></i></span><span class="ttl">Профиль</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <label class="field-label" for="profile-author">Автор записей</label>
+                        <input type="text" id="profile-author" maxlength="30" autocomplete="name" placeholder="Александр">
+                        <p class="hint" style="margin:6px 4px 10px">Имя ставится под каждой новой идеей и делом, в приветствии и в названии PDF. У прежних записей имя остаётся прежним.</p>
+                        <div class="switch-row"><div class="tx"><b>Экран блокировки при запуске</b><span class="sub">Часы и погода Алматы, ползунок «разблокируйте»</span></div><input type="checkbox" class="switch" id="profile-splash" aria-label="Экран блокировки при запуске"></div>
+                    </div>
+                </div>
+
+                <!-- Данные -->
+                <div class="card" id="data-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="backup"></i></span><span class="ttl">Данные</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <p class="hint" id="data-info" style="margin-bottom:8px"></p>
+                        <p class="hint" style="margin-bottom:12px">Без входа через Google всё хранится только в этом браузере, поэтому время от времени сохраняйте копию: в ней идеи, дела, фильмы, настройки и все вложения (ключей от сервисов кино в копии нет). С подключённым Google Диском копия — просто запасной вариант.</p>
+                        <div class="btn-group">
+                            <button type="button" class="btn" id="data-backup"><i data-i="download"></i>Сохранить копию</button>
+                            <button type="button" class="btn" id="data-restore"><i data-i="restore"></i>Загрузить копию</button>
+                        </div>
+                        <input type="file" id="data-file" accept=".json,application/json" hidden>
+                    </div>
+                </div>
+
+                <!-- О приложении -->
+                <div class="card" id="about-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="info"></i></span><span class="ttl">О приложении</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <p style="margin-bottom:12px"><b>iLife</b> — личное некоммерческое приложение. Версия <span class="app-ver">1.2.0</span>. Дизайн и логика — из My Money 4.8.1.</p>
+                        <div class="cl-version">
+                            <h4>1.2.0 <span class="cl-tag">Кино</span></h4>
+                            <ul>
+                                <li>Новый раздел «Кино»: «Смотрю сейчас», «Список для просмотра» и «Просмотрено». У каждого фильма обложка, название, оценки (Кинопоиск, IMDb, Rotten Tomatoes, Metacritic, TMDB и среднее), режиссёр, актёры, ваша оценка от 1 до 10 с заметкой и кнопка «Посмотрел».</li>
+                                <li>Распознавание скриншотов: приложение читает текст на картинке прямо на устройстве, находит фильмы в базе и предлагает список с галочками; по желанию на помощь подключается ИИ (Gemini или Claude) для кадров и афиш без названия.</li>
+                                <li>Поиск фильма и сериала по названию; «Настройки → Кино»: ключи TMDB, OMDb, ПоискКино и ИИ с проверкой подключения. Фильмы входят в копию данных, PDF и синхронизацию с Google Диском (обложки — как вложения); сами ключи остаются только на устройстве.</li>
+                            </ul>
+                        </div>
+                        <div class="cl-version">
+                            <h4>1.1.0 <span class="cl-tag">Google Диск</span></h4>
+                            <ul>
+                                <li>«Настройки → Google Диск»: заглушка заменена рабочим входом через Google и синхронизацией с Google Диском (папка «iLife»: файл ilife_data.json и папка «Вложения»).</li>
+                                <li>Идеи, дела, история цен, имя автора, тема и шрифт сливаются между устройствами поштучно: правки с телефона и ПК не затирают друг друга, удаления тоже передаются.</li>
+                                <li>Картинки, музыка, голосовые записи и файлы из идей отправляются на Диск и скачиваются на других устройствах (можно отключить переключателем).</li>
+                                <li>Автосинхронизация: после изменений, при открытии, при возвращении в приложение и раз в минуту; без интернета изменения копятся и уходят позже. Client ID можно вписать в поле или в js/config.js.</li>
+                            </ul>
+                        </div>
+                        <div class="cl-version">
+                            <h4>1.0.0 <span class="cl-tag">первая версия</span></h4>
+                            <ul>
+                                <li>«Идеи»: поиск по словам, #хештегам и датам; блок с текстом, хештегами, картинками, музыкой, диктофоном, файлами и кнопкой Spotify; у каждой заметки дата создания и автор.</li>
+                                <li>«Дела»: список покупок из My Money с ценами и валютами, расширенный до списка дел со сроками; записи по датам и с именем автора.</li>
+                                <li>PDF: отдельные кнопки для идей и для дел.</li>
+                                <li>«Настройки»: заглушка Google Диска, Spotify, масштаб 50–200%, пять тем Android, шрифт, профиль, копия данных.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+        </div>
+
+        <!-- Нижняя навигация (телефон) -->
+        <nav class="mobile-nav" aria-label="Разделы">
+            <button type="button" data-tab="ideas"><span class="pill"><i data-i="lightbulb"></i></span><span>Идеи</span></button>
+            <button type="button" data-tab="todo"><span class="pill"><i data-i="checklist"></i></span><span>Дела</span></button>
+            <button type="button" data-tab="movies"><span class="pill"><i data-i="movie"></i></span><span>Кино</span></button>
+            <button type="button" data-tab="settings"><span class="pill"><i data-i="settings"></i></span><span>Настройки</span></button>
+        </nav>
+
+        <!-- Плавающая кнопка: быстро перейти к вводу -->
+        <button type="button" class="fab" id="fab" aria-label="Добавить"><i data-i="add"></i></button>
+    </div>
+
+    <div id="sheet-host"></div>
+    <div class="toast-host" id="toast-host" aria-live="polite"></div>
+
+    <script src="js/pdf-fonts.js"></script>
+    <script src="js/android.js"></script>
+    <script src="js/media.js"></script>
+    <script src="js/splash.js"></script>
+    <script src="js/spotify.js"></script>
+    <script src="js/ideas.js"></script>
+    <script src="js/todo.js"></script>
+    <script src="js/moviedb.js"></script>
+    <script src="js/recognize.js"></script>
+    <script src="js/movies.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/gdrive.js"></script>
+    <script src="js/pdf.js"></script>
+    <script src="js/pdf-export.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
