@@ -269,6 +269,11 @@ function gMergeKeys(lk, lat, rk, rat) {
     });
     return { keys, at };
 }
+// Запоминаем, что нашли на Диске (есть ли ключи, чья версия записала файл) — показывается в Настройках → Google Диск
+function gKeysInfoSave(remote) {
+    const at = Math.max(0, ...Object.values((remote && remote.keysAt) || {}).map(Number).filter(n => n > 0));
+    LS.set('g_keys_info', { found: !!(remote && remote.keys && typeof remote.keys === 'object'), by: String((remote && remote.appVersion) || '?'), at, seen: Date.now() });
+}
 // Применяет полученные с Диска ключи на этом устройстве; возвращает, изменилось ли что-то
 function gApplyKeys(k) {
     if (!k || typeof k !== 'object' || typeof mvCfg !== 'function') return false;
@@ -525,6 +530,7 @@ async function runCloudSync(opts) {
             remoteChanged = file.modifiedTime !== LS.get('g_remote_mod', '');
             if (remoteChanged || LS.get('g_dirty', false) || manual) remote = await gReadJson(file.id);
         }
+        if (remote) gKeysInfoSave(remote);   // для строки-подсказки в Настройках: что было на Диске при проверке
         // слияние считаем сразу после чтения, чтобы не потерять правки, сделанные во время загрузки
         const local = gLocalSnapshot();
         const merged = remote ? gMerge(local, remote) : local;
@@ -566,7 +572,7 @@ function setCloudStatus(state, message) { gStatus = { state, message: message ||
 function renderGoogleCardSafe() { try { if (typeof renderGoogleCard === 'function') renderGoogleCard(); } catch (e) { console.warn(e); } }
 function googleInfo() {
     return { user: gUser, status: gStatus, lastSync: LS.get('g_last', 0), cfg: gCfg(), clientId: googleClientId(), source: googleClientSource(), problem: googleClientProblem(),
-        blocked: googleAuthBlockedReason(), hasToken: hasValidToken(), dirty: !!LS.get('g_dirty', false), folderId: LS.get('g_folder', ''), origin: location.origin };
+        blocked: googleAuthBlockedReason(), hasToken: hasValidToken(), keysInfo: LS.get('g_keys_info', null), dirty: !!LS.get('g_dirty', false), folderId: LS.get('g_folder', ''), origin: location.origin };
 }
 // Просьба подтвердить вход, когда токен истёк (кнопка в уведомлении = нажатие пользователя, окно Google откроется)
 function gNagAuth() {

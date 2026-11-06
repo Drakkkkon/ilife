@@ -55,6 +55,17 @@ function renderGoogleCard() {
     const auto = $('#google-auto'); if (auto.checked !== !!g.cfg.auto) auto.checked = !!g.cfg.auto;
     const med = $('#google-media'); if (med.checked !== !!g.cfg.media) med.checked = !!g.cfg.media;
     const ky = $('#google-keys'); if (ky && ky.checked !== !!g.cfg.keys) ky.checked = !!g.cfg.keys;
+    const ki = $('#google-keys-info'); if (ki) ki.textContent = keysInfoText(g);
+}
+// Что сейчас с ключами на Диске — чтобы было видно, дошли ли они и какая версия приложения записала файл
+function keysInfoText(g) {
+    const ver = 'эта версия ' + APP_VERSION;
+    if (!g.cfg.keys) return 'Синхронизация ключей на этом устройстве выключена (' + ver + ').';
+    const i = g.keysInfo;
+    if (!i) return 'Ключи: на Диске ещё не проверяли — нажмите «Синхронизировать сейчас» (' + ver + ').';
+    const old = String(i.by).split('.').map(Number); const isOld = old[0] < 1 || (old[0] === 1 && (old[1] || 0) < 3);
+    if (i.found) return 'Ключи на Диске есть' + (i.at ? ' (последняя правка ' + fmtDateTime(i.at) + ')' : '') + '. Файл записан версией ' + i.by + '; ' + ver + '. Проверено ' + fmtDateTime(i.seen) + '.';
+    return 'На Диске ключей не было: файл записан версией ' + i.by + (isOld ? ', а она не умеет хранить ключи — обновите iLife на всех устройствах (закройте и откройте приложение)' : '') + '. Ключи уйдут на Диск с устройства, где они введены (' + ver + ').';
 }
 function initGoogleCard() {
     $('#g-client').addEventListener('change', e => {

@@ -1,6 +1,6 @@
 // iLife — служебный воркер: приложение открывается и без интернета (кроме погоды, курсов, шрифта Google, входа Google, Spotify и баз фильмов).
 // Файлы приложения кешируются при первом открытии; при выходе новой версии меняйте CACHE (число в конце) — старый кеш удалится сам.
-const CACHE = 'ilife-v1.3.0';
+const CACHE = 'ilife-v1.3.1';
 const CORE = [
     './', 'index.html', 'manifest.webmanifest',
     'css/android.css', 'css/app.css',
@@ -19,7 +19,7 @@ self.addEventListener('fetch', e => {
     if (req.method !== 'GET' || url.origin !== location.origin) return; // чужие адреса (Spotify, погода, шрифты) — напрямую
     // сначала сеть (чтобы новые версии подхватывались), при отсутствии сети — из кеша; параметры адреса (?code=…) игнорируются
     e.respondWith(
-        fetch(req).then(res => {
+        fetch(req, { cache: 'no-cache' }).then(res => {
             if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
             return res;
         }).catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || (req.mode === 'navigate' ? caches.match('index.html', { ignoreSearch: true }) : Response.error())))
