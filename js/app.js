@@ -4,7 +4,7 @@
 // служебный воркер (работа без сети).
 // =====================================================================================================
 
-const TABS = ['ideas', 'todo', 'movies', 'settings'];
+const TABS = ['ideas', 'todo', 'movies', 'sovsek', 'settings'];
 const collapsedCards = new Set(LS.get('collapsed', []));   // свёрнутые блоки; состояние запоминается
 
 let hashTab = null;   // вкладка, адрес которой (#id) ещё не записан в строку браузера
@@ -14,13 +14,14 @@ function showTab(id) {
     if (!TABS.includes(id)) id = 'ideas';
     $$('.tab').forEach(t => t.classList.toggle('is-active', t.id === id));
     $$('[data-tab]').forEach(b => { if (b.tagName === 'BUTTON') { const on = b.dataset.tab === id; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'page' : 'false'); } });
-    $('#fab').classList.toggle('is-hidden', id === 'settings');
+    $('#fab').classList.toggle('is-hidden', id === 'settings' || id === 'sovsek');
     settings.lastTab = id; saveSettings();
     if (document.readyState === 'complete') syncHash(id); else hashTab = id;   // пока страница грузится, адрес не трогаем: иначе Chrome «прокручивает к якорю» #id и сдвигает верх страницы
     window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
     if (id === 'settings') { renderStorageInfo(); renderSpotifyCard(); renderYoutubeCard(); renderTelegramCard(); renderGoogleCard(); renderMoviesCard(); if (googleClientId() && !gisReady()) loadGis(); }
     if (id === 'ideas') renderTelegramBlock();
     if (id === 'movies') renderMovies();
+    if (id === 'sovsek') renderGallery();
 }
 
 // Нажатие на версию (рядом с логотипом): открыть «Настройки → О приложении → Журнал изменений»
@@ -68,6 +69,7 @@ async function bootstrap() {
     initIdeas();
     initYoutube();
     initTelegram();
+    initGallery();
     initTodo();
     initMovies();
     initSettings();

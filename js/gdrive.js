@@ -20,6 +20,8 @@
 
 const G_FOLDER_NAME = 'iLife';
 const G_MEDIA_FOLDER_NAME = 'Вложения';
+const G_GALLERY_FOLDER_NAME = 'Мое_совсек';   // фото страницы «Мое_совсек» лежат в отдельной папке iLife/Мое_совсек
+const G_GAL_BUDGET = 70000;                    // за один заход фото передаются не дольше ~70 с, остальное — следующим заходом
 const G_FILE_NAME = 'ilife_data.json';
 const G_SCOPES = 'https://www.googleapis.com/auth/drive.file openid email profile';
 const G_DRIVE_API = 'https://www.googleapis.com/drive/v3';
@@ -36,7 +38,8 @@ const G_LISTS = [
     { key: 'ideas', get: () => ideas, set: v => { ideas = v; } },
     { key: 'todos', get: () => todos, set: v => { todos = v; } },
     { key: 'prices', get: () => prices, set: v => { prices = v; } },
-    { key: 'movies', get: () => movies, set: v => { movies = v; } }
+    { key: 'movies', get: () => movies, set: v => { movies = v; } },
+    { key: 'gallery', get: () => gallery, set: v => { gallery = v; } }
 ];
 
 let gToken = null, gTokenExpiry = 0;
@@ -120,7 +123,7 @@ async function gFetchProfile() {
     const prev = gUser;
     gUser = { email: p.email || '', name: p.name || '', picture: p.picture || '' };
     // Другой аккаунт Google — забываем файлы прошлого аккаунта: на новом Диске их нет
-    if (prev && prev.email && prev.email !== gUser.email) ['g_folder', 'g_media_folder', 'g_file', 'g_remote_mod', 'g_last', 'g_up'].forEach(k => LS.del(k));
+    if (prev && prev.email && prev.email !== gUser.email) ['g_folder', 'g_media_folder', 'g_gallery_folder', 'g_file', 'g_remote_mod', 'g_last', 'g_up', 'g_gal_up', 'g_gal_try', 'g_gal_orphan'].forEach(k => LS.del(k));
     LS.set('g_user', gUser);
     return gUser;
 }
@@ -150,7 +153,7 @@ async function signOutGoogle() {
     if (!(await confirmSheet('Выйти из аккаунта Google?', 'Данные останутся на этом устройстве и на вашем Google Диске, но перестанут синхронизироваться.', 'Выйти', true))) return;
     try { if (gToken && gisReady()) google.accounts.oauth2.revoke(gToken, () => {}); } catch (e) {}
     gDropToken(); gUser = null;
-    ['g_user', 'g_folder', 'g_media_folder', 'g_file', 'g_remote_mod', 'g_last', 'g_up', 'g_dirty'].forEach(k => LS.del(k));
+    ['g_user', 'g_folder', 'g_media_folder', 'g_gallery_folder', 'g_file', 'g_remote_mod', 'g_last', 'g_up', 'g_gal_up', 'g_gal_try', 'g_gal_orphan', 'g_dirty'].forEach(k => LS.del(k));
     setCloudStatus('off');
     toast('Вы вышли из аккаунта Google');
 }
@@ -309,6 +312,7 @@ function gLegacyStamp() {
     todos.forEach(t => { if (!t.updatedAt) t.updatedAt = Math.max(Number(t.addedAt) || 0, Number(t.doneAt) || 0); });
     prices.forEach(p => { if (!p.updatedAt) { const ms = keyToMs(p.date); p.updatedAt = isNaN(ms) ? 0 : ms; } });
     movies.forEach(m => { if (!m.updatedAt) m.updatedAt = Math.max(Number(m.addedAt) || 0, Number(m.watchedAt) || 0); });
+    gallery.forEach(g => { if (!g.updatedAt) g.updatedAt = Number(g.date) || 1; });
     // ключи, введённые до появления синхронизации ключей: ставим им время, чтобы они ушли на Диск (пустые и «по умолчанию» не трогаем)
     const meta = gMetaGet(), cur = gKeysObj(); let ch = false;
     G_KEY_FIELDS.forEach(f => { if (!meta.keysAt[f] && JSON.stringify(cur[f]) !== JSON.stringify(G_KEY_DEFAULTS[f])) { meta.keysAt[f] = Date.now(); ch = true; } });
@@ -351,7 +355,7 @@ function cloudLocalChanged() {
 function gLocalSnapshot() {
     const meta = gMetaGet();
     const snap = { app: 'ilife', format: 1, appVersion: APP_VERSION, savedAt: Date.now(),
-        ideas, todos, prices, movies, scalars: gScalars(), scalarsAt: meta.scalarsAt, deleted: meta.deleted };
+        ideas, todos, prices, movies, gallery, scalars: gScalars(), scalarsAt: meta.scalarsAt, deleted: meta.deleted };
     if (gCfg().keys) { snap.keys = gKeysObj(); snap.keysAt = meta.keysAt; }   // выключатель «Ключи тоже на Диск»
     return snap;
 }
@@ -404,13 +408,13 @@ function gDraftIds() { const s = new Set(); try { (draft.files || []).forEach(f 
 async function gApply(merged) {
     gApplying = true;
     try {
-        const oldRefs = gAllMediaRefs();
-        ideas = merged.ideas; todos = merged.todos; prices = merged.prices; movies = merged.movies || [];
+        const oldRefs = gAllMediaRefs(), oldGal = new Set(gallery.map(g => g.id));
+        ideas = merged.ideas; todos = merged.todos; prices = merged.prices; movies = merged.movies || []; gallery = Array.isArray(merged.gallery) ? merged.gallery : [];
         const sc = merged.scalars || {};
         if (sc.author && sc.author !== settings.author) settings.author = String(sc.author).slice(0, 30);
         if (sc.theme && sc.theme !== settings.theme && PALETTES.some(p => p.id === sc.theme)) applyTheme(sc.theme);
         if (sc.font && sc.font !== settings.font && FONTS.some(f => f.id === sc.font)) applyFont(sc.font);
-        LS.set('settings', settings); LS.set('ideas', ideas); LS.set('todos', todos); LS.set('prices', prices); LS.set('movies', movies);
+        LS.set('settings', settings); LS.set('ideas', ideas); LS.set('todos', todos); LS.set('prices', prices); LS.set('movies', movies); LS.set('gallery', gallery);
         // ключи: берём с Диска только если синхронизация ключей включена (иначе метки времени остаются своими)
         const metaNow = gMetaGet(); let keysChanged = false, keysAt = metaNow.keysAt;
         if (gCfg().keys && merged.keys) { keysChanged = gApplyKeys(merged.keys); keysAt = gKeysAtNorm(merged.keysAt); }
@@ -419,7 +423,10 @@ async function gApply(merged) {
         // вложения записей, удалённых или изменённых на другом устройстве, здесь больше не нужны
         const newRefs = gAllMediaRefs(), keep = gDraftIds();
         for (const id of oldRefs) if (!newRefs.has(id) && !keep.has(id)) await BlobDB.del(id);
+        const newGal = new Set(gallery.map(g => g.id));   // фото, удалённые на другом устройстве
+        for (const id of oldGal) if (!newGal.has(id)) await BlobDB.del(id);
         IX.clear(); renderIdeas(); renderTodo(); renderMovies(); renderDraft(); renderThemes();
+        if (typeof galRefreshIfOpen === 'function') galRefreshIfOpen();
         if (keysChanged) {
             try {
                 if (typeof renderMoviesCard === 'function') renderMoviesCard(); if (typeof renderSpotifyCard === 'function' && $('#sp-client')) renderSpotifyCard();
@@ -454,8 +461,8 @@ async function gUploadMedia(folderId, id) {
     await gFetch(G_UPLOAD_API + '/files?uploadType=multipart&fields=id', { method: 'POST', headers: { 'Content-Type': mp.type }, body: mp.body });
     return 'ok';
 }
-async function gMakeThumb(blob, type) {
-    if (!/^image\/(jpeg|png|webp)$/.test(type || '')) return null;
+async function gMakeThumb(blob, type, withGif) {
+    if (!(withGif ? /^image\/(jpeg|png|webp|gif)$/ : /^image\/(jpeg|png|webp)$/).test(type || '')) return null;
     try { const bmp = await decodeImage(blob); const { w, h } = bitmapSize(bmp); const t = await canvasBlob(bmp, w, h, 480, 0.8); if (bmp.close) try { bmp.close(); } catch (e) {} return t && t.blob || null; } catch (e) { return null; }
 }
 async function gDownloadMedia(id, f, meta) {
@@ -463,7 +470,7 @@ async function gDownloadMedia(id, f, meta) {
     const type = f.mimeType || meta.type || 'application/octet-stream';
     const blob = new Blob([await r.blob()], { type });
     const name = meta.name || String(f.name || '').replace(/^[^_]*__/, '') || 'file';
-    await BlobDB.put({ id, blob, thumb: await gMakeThumb(blob, type), name, type, size: blob.size });
+    await BlobDB.put({ id, blob, thumb: await gMakeThumb(blob, type, meta.gallery), name, type, size: blob.size });
 }
 function gMediaMeta(id) {
     for (const i of ideas) {
@@ -518,6 +525,56 @@ async function gSyncMedia(opts) {
     return res;
 }
 
+// ---------- Фото страницы «Мое_совсек»: отдельная папка iLife/Мое_совсек ----------
+let gGalMore = false;   // прошлый заход не успел передать все фото — следующий не ждёт 5 минут
+async function gSyncGallery(opts) {
+    const res = { up: 0, down: 0, big: 0, waiting: 0, more: false, warn: '' };
+    const refs = new Set(gallery.map(g => g.id));
+    const localIds = new Set(await BlobDB.ids());
+    const uploaded = new Set(LS.get('g_gal_up', []));
+    const pendUp = [...refs].filter(id => localIds.has(id) && !uploaded.has(id));
+    const pendDown = [...refs].filter(id => !localIds.has(id));
+    const orphanDue = opts.manual && gallery.length > 0 && Date.now() - LS.get('g_gal_orphan', 0) > G_ORPHAN_GRACE;
+    if (!pendUp.length && !pendDown.length && !orphanDue) { gGalMore = false; return res; }
+    if (!pendUp.length && !opts.manual && !opts.remoteChanged && !gGalMore && Date.now() - LS.get('g_gal_try', 0) < 5 * 60000) return res;
+    LS.set('g_gal_try', Date.now());
+    const folderId = await gEnsureFolder(G_GALLERY_FOLDER_NAME, LS.get('g_folder', ''), 'g_gallery_folder');
+    const remote = await gListMedia(folderId);
+    remote.forEach((_, id) => uploaded.add(id));
+    const meta = new Map(gallery.map(g => [g.id, g]));
+    const todoUp = pendUp.filter(id => !remote.has(id)), todoDown = pendDown.filter(id => remote.has(id));
+    res.waiting = pendDown.length - todoDown.length;
+    const total = todoUp.length + todoDown.length, t0 = Date.now(); let n = 0;
+    const over = () => Date.now() - t0 > G_GAL_BUDGET;
+    for (const id of todoUp) {
+        if (over()) { res.more = true; break; }
+        setCloudStatus('syncing', 'Мое_совсек: отправка ' + (++n) + ' из ' + total);
+        const r = await gUploadMedia(folderId, id);
+        if (r === 'ok') { uploaded.add(id); res.up++; } else if (r === 'big') { res.big++; uploaded.add(id); }
+    }
+    for (const id of todoDown) {
+        if (res.more || over()) { res.more = true; break; }
+        const f = remote.get(id), g = meta.get(id) || {};
+        setCloudStatus('syncing', 'Мое_совсек: загрузка ' + (++n) + ' из ' + total);
+        try { await gDownloadMedia(id, f, { name: g.name, type: f.mimeType || (g.kind === 'gif' ? 'image/gif' : 'image/jpeg'), gallery: true }); res.down++; }
+        catch (e) { if (e.code === 'auth') throw e; console.warn('Фото не скачалось', id, e); res.waiting++; }
+    }
+    if (res.down && typeof galRefreshIfOpen === 'function') { galRefreshIfOpen(); if (typeof renderStorageInfo === 'function') renderStorageInfo(); }
+    if (orphanDue && !res.more) {   // файлы удалённых фото — в корзину Диска, но не раньше чем через сутки
+        LS.set('g_gal_orphan', Date.now());
+        for (const [mid, f] of remote) {
+            if (refs.has(mid)) continue;
+            const mt = Date.parse(f.modifiedTime); if (!mt || Date.now() - mt < G_ORPHAN_GRACE) continue;
+            try { await gFetch(G_DRIVE_API + '/files/' + encodeURIComponent(f.id) + '?fields=id', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) }); uploaded.delete(mid); } catch (e) { if (e.code === 'auth') throw e; }
+        }
+    }
+    LS.set('g_gal_up', [...uploaded].filter(id => refs.has(id)));
+    gGalMore = res.more;
+    if (res.big) res.warn = 'Фото крупнее ' + fmtBytes(G_MEDIA_MAX) + ' не отправлено на Диск: ' + res.big;
+    else if (res.waiting) res.warn = 'Мое_совсек: ' + res.waiting + ' фото ещё не выложено с другого устройства';
+    return res;
+}
+
 // ---------- Синхронизация ----------
 function scheduleCloudSync(delay) {
     if (!gUser) return;
@@ -556,6 +613,11 @@ async function runCloudSync(opts) {
                 const m = await gSyncMedia({ manual, remoteChanged });
                 mediaWarn = m.warn || (m.missing ? 'Не все вложения доступны: ' + m.missing : '');
             } catch (e) { if (e.code === 'auth') throw e; console.warn('Синхронизация вложений не удалась', e); mediaWarn = 'Вложения не синхронизированы: ' + e.message; }
+            try {
+                const gm = await gSyncGallery({ manual, remoteChanged });
+                if (gm.more) gAgain = true;
+                if (gm.warn && !mediaWarn) mediaWarn = gm.warn;
+            } catch (e) { if (e.code === 'auth') throw e; console.warn('Синхронизация фото не удалась', e); if (!mediaWarn) mediaWarn = 'Фото «Мое_совсек» не синхронизированы: ' + e.message; }
         }
         if (!file) {
             const created = await gCreateDataFile(folderId, final);

@@ -169,7 +169,7 @@ function initProfile() {
 
 // ---------- Данные: копия и восстановление ----------
 async function renderStorageInfo() {
-    let text = 'Идей: ' + ideas.length + ' · дел и покупок: ' + todos.length + ' · фильмов: ' + movies.length;
+    let text = 'Идей: ' + ideas.length + ' · дел и покупок: ' + todos.length + ' · фильмов: ' + movies.length + (gallery.length ? ' · фото и GIF: ' + gallery.length : '');
     try { if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); if (e && e.usage != null) text += ' · занято на устройстве: ' + fmtBytes(e.usage); } } catch (e) {}
     $('#data-info').textContent = text;
 }
@@ -177,7 +177,8 @@ async function backupData() {
     const btn = $('#data-backup'); btn.disabled = true;
     try {
         const media = [];
-        for (const rec of await BlobDB.all()) media.push({ id: rec.id, name: rec.name, type: rec.type, size: rec.size, data: await blobToBase64(rec.blob), thumb: rec.thumb ? await blobToBase64(rec.thumb) : null, thumbType: rec.thumb ? rec.thumb.type : null });
+        const galIds = new Set(gallery.map(g => g.id));   // фото «Мое_совсек» в копию не входят: их много, они лежат на Google Диске
+        for (const id of await BlobDB.ids()) { if (galIds.has(id)) continue; const rec = await BlobDB.get(id); if (rec) media.push({ id: rec.id, name: rec.name, type: rec.type, size: rec.size, data: await blobToBase64(rec.blob), thumb: rec.thumb ? await blobToBase64(rec.thumb) : null, thumbType: rec.thumb ? rec.thumb.type : null }); }
         const data = { app: 'iLife', version: APP_VERSION, exportedAt: new Date().toISOString(), settings, ideas, todos, prices, movies, media };
         const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
         const name = stampName('копия', 'json');
@@ -193,7 +194,8 @@ async function restoreData(file) {
     const ok = await confirmSheet('Заменить данные копией?', 'Идей в копии: ' + data.ideas.length + ', дел и покупок: ' + (data.todos || []).length + ', фильмов: ' + (data.movies || []).length + '. Текущие идеи, дела, фильмы и вложения на этом устройстве будут заменены.', 'Заменить', true);
     if (!ok) return;
     try {
-        await BlobDB.clear();
+        const galIds = new Set(gallery.map(g => g.id));   // фото «Мое_совсек» остаются на месте
+        for (const id of await BlobDB.ids()) if (!galIds.has(id)) await BlobDB.del(id);
         for (const m of data.media || []) await BlobDB.put({ id: m.id, name: m.name, type: m.type, size: m.size, blob: b64ToBlob(m.data, m.type), thumb: m.thumb ? b64ToBlob(m.thumb, m.thumbType) : null });
         ideas = data.ideas; todos = data.todos || []; prices = data.prices || []; movies = Array.isArray(data.movies) ? data.movies : [];
         saveIdeas(); saveTodos(); saveMovies(); IX.clear();
