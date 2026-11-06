@@ -3,12 +3,14 @@
 // iLife — СТРАНИЦА «ИДЕИ»: поиск сверху, блок «Новая идея» (текст, хештеги, картинки, музыка, диктофон, файлы, Spotify),
 // список заметок с датой создания и автором внизу каждой. PDF — кнопка в заголовке страницы (js/pdf-export.js).
 //
-// Запись: { id, text, tags[], createdAt, updatedAt, author, files[], track|null }
+// Запись: { id, text, tags[], createdAt, updatedAt, author, files[], track|null, eventDate?, tg? }
 //   tags  — хештеги в нижнем регистре без «#» (из текста вида #идея + добавленные отдельно);
 //   files — метаданные вложений (сами файлы в IndexedDB, см. media.js);
-//   track — трек Spotify { title, artist, album, url, coverId?, coverUrl? }.
+//   track — трек Spotify или YouTube { title, artist, album, url, src?: 'youtube', coverId?, coverUrl? };
+//   eventDate — дата события «ГГГГ-ММ-ДД» (необязательно; ставит ИИ при разборе постов Telegram или вы в «Изменить идею»);
+//   tg    — откуда идея из Telegram-канала { c: номер канала, m: [номера сообщений], ch: название } (js/telegram.js).
 // Поиск (индекс собирается по каждой записи): слова из текста, названия файлов и треков; хештеги (#тег);
-// даты — 05.11.2026, 05.11, 2026-11-05, 2026, «ноябрь», «ноября», «четверг», «сегодня», «вчера».
+// даты — 05.11.2026, 05.11, 2026-11-05, 2026, «ноябрь», «ноября», «четверг», «сегодня», «вчера» (и по дате создания, и по дате события).
 // Несколько слов через пробел — запись должна подходить под все.
 // =====================================================================================================
 
@@ -64,7 +66,8 @@ function ideaIndex(idea) {
     let ix = IX.get(key);
     if (ix) return ix;
     const parts = [idea.text, idea.author, (idea.files || []).map(f => f.name).join(' '), idea.track ? [idea.track.title, idea.track.artist, idea.track.album].join(' ') : ''];
-    ix = { text: normText(parts.join(' \n ')), tags: idea.tags || [], dates: dateStrings(idea.createdAt).map(normText) };
+    const ev = idea.eventDate && !isNaN(keyToMs(idea.eventDate)) ? dateStrings(keyToMs(idea.eventDate)).map(normText) : [];
+    ix = { text: normText(parts.join(' \n ')), tags: idea.tags || [], dates: dateStrings(idea.createdAt).map(normText).concat(ev) };   // dates[0] — всегда день создания
     IX.set(key, ix);
     return ix;
 }
@@ -98,9 +101,11 @@ function queryTokens(q) {
     return out;
 }
 function filteredIdeas() {
+    // новые сверху по дате создания: так старые посты из Telegram встают на своё место, а не в начало списка
+    const sorted = ideas.slice().sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
     const tokens = queryTokens(ideaQuery);
-    if (!tokens.length) return ideas.slice();
-    return ideas.filter(i => { const ix = ideaIndex(i); return tokens.every(t => matchToken(ix, t)); });
+    if (!tokens.length) return sorted;
+    return sorted.filter(i => { const ix = ideaIndex(i); return tokens.every(t => matchToken(ix, t)); });
 }
 function setQuery(q, focus) {
     ideaQuery = q; ideasShown = 40;
@@ -176,6 +181,7 @@ async function saveIdea() {
         let track = null;
         if (draft.track) {
             track = { title: draft.track.title, artist: draft.track.artist, album: draft.track.album || '', url: draft.track.url || '' };
+            if (draft.track.src) track.src = draft.track.src;   // 'youtube' — для значка в карточке трека
             if (draft.track.coverBlob) { const cid = uid('c'); await BlobDB.put({ id: cid, blob: draft.track.coverBlob, name: 'cover.jpg', type: draft.track.coverBlob.type, size: draft.track.coverBlob.size }); track.coverId = cid; }
             else if (draft.track.remoteCover) track.coverUrl = draft.track.remoteCover;
         }
@@ -216,8 +222,8 @@ function noteHtml(idea) {
             const t = idea.track;
             h += '<' + (t.url ? 'a href="' + esc(t.url) + '" target="_blank" rel="noopener noreferrer"' : 'div') + ' class="track-card">' +
                 (t.coverId ? '<img class="cv" alt="" data-blob="' + t.coverId + '">' : t.coverUrl ? '<img class="cv" alt="" src="' + esc(t.coverUrl) + '">' : '<span class="cv">' + ic('album') + '</span>') +
-                '<span class="tx"><span class="nm">' + esc(t.title) + '</span><br><span class="sub">' + esc(t.artist) + (t.album ? ' · ' + esc(t.album) : '') + '</span></span>' +
-                (t.url ? '<span class="lnk">' + ic('open_in_new') + '</span>' : '') + '</' + (t.url ? 'a' : 'div') + '>';
+                '<span class="tx"><span class="nm">' + esc(t.title) + '</span><br><span class="sub">' + esc(t.artist) + (t.album ? ' · ' + esc(t.album) : '') + (t.src === 'youtube' ? ' · YouTube' : '') + '</span></span>' +
+                (t.url ? '<span class="lnk">' + (t.src === 'youtube' ? ic('youtube', 'src-ico') : ic('open_in_new')) + '</span>' : '') + '</' + (t.url ? 'a' : 'div') + '>';
         }
         others.forEach(f => {
             h += '<button type="button" class="file-row" data-file="' + f.id + '"><span class="fi">' + ic(fileIconName(f)) + '</span><span class="tx"><div class="nm">' + esc(f.name) + '</div><div class="sub">' + fmtBytes(f.size) + ' · нажмите, чтобы открыть</div></span>' + ic('download') + '</button>';
@@ -225,7 +231,9 @@ function noteHtml(idea) {
         h += '</div>';
     }
     h += '<div class="note-foot"><div class="meta"><button type="button" class="meta-btn" data-date="' + dayKey(idea.createdAt) + '" title="Показать записи за этот день">' + ic('calendar_today') + esc(fmtDateTime(idea.createdAt)) + '</button>' +
-        '<span>' + ic('person') + esc(idea.author || 'Александр') + '</span></div>' +
+        (idea.eventDate && !isNaN(keyToMs(idea.eventDate)) ? '<button type="button" class="meta-btn" data-date="' + esc(idea.eventDate) + '" title="Событие на эту дату — показать записи">' + ic('event') + 'на ' + esc(fmtDayKey(idea.eventDate)) + '</button>' : '') +
+        '<span>' + ic('person') + esc(idea.author || 'Александр') + '</span>' +
+        (idea.tg ? '<span title="Идея из Telegram-канала">' + ic('send') + esc(idea.tg.ch || 'Telegram') + '</span>' : '') + '</div>' +
         '<button type="button" class="icon-btn" data-edit="' + idea.id + '" aria-label="Изменить">' + ic('edit') + '</button>' +
         '<button type="button" class="icon-btn is-danger" data-del="' + idea.id + '" aria-label="Удалить">' + ic('delete') + '</button></div></article>';
     return h;
@@ -284,6 +292,7 @@ function editIdea(id) {
     const files = (idea.files || []);
     const html = '<label class="field-label" for="edit-text">Текст</label><textarea id="edit-text" rows="6"></textarea>' +
         '<label class="field-label" for="edit-tags" style="margin-top:12px">Дополнительные хештеги (через пробел)</label><input type="text" id="edit-tags" placeholder="#идея #работа">' +
+        '<label class="field-label" for="edit-event" style="margin-top:12px">Дата события (необязательно — по ней идею тоже можно найти)</label><input type="date" id="edit-event">' +
         ((files.length || idea.track) ? '<div class="edit-attach" id="edit-attach"></div>' : '');
     const sheet = openSheet({
         title: 'Изменить идею', html,
@@ -295,11 +304,14 @@ function editIdea(id) {
             idea.files = files.filter(f => !removed.has(f.id));
             if (dropTrack && idea.track) { if (idea.track.coverId) await BlobDB.del(idea.track.coverId); idea.track = null; }
             idea.text = text; idea.tags = tags; idea.updatedAt = Date.now();
+            const ev = $('#edit-event', sheet.el).value;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(ev)) idea.eventDate = ev; else delete idea.eventDate;
             saveIdeas(); renderIdeas(); toast('Изменения сохранены');
         } }]
     });
     $('#edit-text', sheet.el).value = idea.text || '';
     $('#edit-tags', sheet.el).value = extra.map(t => '#' + t).join(' ');
+    $('#edit-event', sheet.el).value = /^\d{4}-\d{2}-\d{2}$/.test(idea.eventDate || '') ? idea.eventDate : '';
     const box = $('#edit-attach', sheet.el);
     if (box) {
         const paint = () => {
@@ -380,6 +392,7 @@ function initIdeas() {
     $('#rec-stop').addEventListener('click', () => finishRecording(false));
     $('#rec-cancel').addEventListener('click', () => finishRecording(true));
     $('#btn-spotify').addEventListener('click', async () => { const t = await openSpotifyPicker(); if (t) { draft.track = t; renderDraft(); toast('Трек добавлен: ' + t.title); } });
+    $('#btn-youtube').addEventListener('click', async () => { const t = await openYoutubePicker(); if (t) { draft.track = t; renderDraft(); toast('Трек добавлен: ' + t.title); } });
 
     // перетаскивание файлов на блок
     const comp = $('#composer');

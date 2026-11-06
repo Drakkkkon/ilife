@@ -245,16 +245,18 @@ function gMetaGet() {
     return { scalarsAt: Number(m.scalarsAt) || 0, keysAt: gKeysAtNorm(m.keysAt), deleted };
 }
 function gMetaSave(meta) { LS.set('g_meta', meta); }
-// ---------- Ключи (TMDB, OMDb, ПоискКино, ИИ, Client ID Spotify): у каждого поля своё время правки ----------
+// ---------- Ключи (TMDB, OMDb, ПоискКино, ИИ, Client ID Spotify, ключ YouTube, токен и канал Telegram): у каждого поля своё время правки ----------
 // Так ключ, введённый на телефоне, не затирает остальные ключи с компьютера, а новый телефон просто получает всё готовым.
-const G_KEY_FIELDS = ['tmdb', 'omdb', 'kp', 'ai', 'aiKey', 'aiModel', 'aiAuto', 'spClientId'];
-const G_KEY_DEFAULTS = { tmdb: '', omdb: '', kp: '', ai: 'none', aiKey: '', aiModel: '', aiAuto: true, spClientId: '' };
+const G_KEY_FIELDS = ['tmdb', 'omdb', 'kp', 'ai', 'aiKey', 'aiModel', 'aiAuto', 'spClientId', 'ytKey', 'tgToken', 'tgChat'];
+const G_KEY_DEFAULTS = { tmdb: '', omdb: '', kp: '', ai: 'none', aiKey: '', aiModel: '', aiAuto: true, spClientId: '', ytKey: '', tgToken: '', tgChat: '' };
 function gKeysAtNorm(v) { const o = {}; G_KEY_FIELDS.forEach(f => { o[f] = Number(v && v[f]) || 0; }); return o; }
 function gKeysObj() {   // текущие значения на этом устройстве, всегда в одном порядке
     const c = typeof mvCfg === 'function' ? mvCfg() : {}, sp = typeof spCfg === 'function' ? spCfg() : {};
+    const yt = typeof ytCfg === 'function' ? ytCfg() : {}, tg = typeof tgCfg === 'function' ? tgCfg() : {};
     const t = x => String(x == null ? '' : x).replace(/\s+/g, '');
     return { tmdb: t(c.tmdb), omdb: t(c.omdb), kp: t(c.kp), ai: c.ai === 'gemini' || c.ai === 'claude' ? c.ai : 'none', aiKey: t(c.aiKey),
-        aiModel: String(c.aiModel || '').trim(), aiAuto: c.aiAuto !== false, spClientId: t(sp.clientId) };
+        aiModel: String(c.aiModel || '').trim(), aiAuto: c.aiAuto !== false, spClientId: t(sp.clientId),
+        ytKey: t(yt.key), tgToken: t(tg.token), tgChat: String(tg.chat || '').trim() };
 }
 function gKeysJsonMap(o) { const m = {}; G_KEY_FIELDS.forEach(f => { m[f] = JSON.stringify(o[f]); }); return m; }
 // Слияние по полям: у кого время правки позже, того значение и берём (при равенстве — своё)
@@ -285,6 +287,13 @@ function gApplyKeys(k) {
     if (Object.keys(patch).length) LS.set('movie_cfg', Object.assign(mvCfg(), patch));
     if (typeof k.spClientId === 'string' && k.spClientId !== cur.spClientId && typeof spCfg === 'function') {
         LS.set('spotify', Object.assign(spCfg(), { clientId: k.spClientId })); changed = true;
+    }
+    if (typeof k.ytKey === 'string' && k.ytKey !== cur.ytKey && typeof ytCfg === 'function') { LS.set('youtube', Object.assign(ytCfg(), { key: k.ytKey })); changed = true; }
+    if (typeof tgCfg === 'function') {
+        const tp = {};
+        if (typeof k.tgToken === 'string' && k.tgToken !== cur.tgToken) tp.token = k.tgToken;
+        if (typeof k.tgChat === 'string' && k.tgChat !== cur.tgChat) tp.chat = k.tgChat;
+        if (Object.keys(tp).length) { LS.set('tg', Object.assign(tgCfg(), tp)); changed = true; }
     }
     return changed;
 }
@@ -412,8 +421,11 @@ async function gApply(merged) {
         for (const id of oldRefs) if (!newRefs.has(id) && !keep.has(id)) await BlobDB.del(id);
         IX.clear(); renderIdeas(); renderTodo(); renderMovies(); renderDraft(); renderThemes();
         if (keysChanged) {
-            try { if (typeof renderMoviesCard === 'function') renderMoviesCard(); if (typeof renderSpotifyCard === 'function' && $('#sp-client')) renderSpotifyCard(); } catch (e) { console.warn(e); }
-            toast('Ключи для «Кино» подтянуты с Google Диска');
+            try {
+                if (typeof renderMoviesCard === 'function') renderMoviesCard(); if (typeof renderSpotifyCard === 'function' && $('#sp-client')) renderSpotifyCard();
+                if (typeof renderYoutubeCard === 'function') renderYoutubeCard(); if (typeof renderTelegramCard === 'function') renderTelegramCard(); if (typeof renderTelegramBlock === 'function') renderTelegramBlock();
+            } catch (e) { console.warn(e); }
+            toast('Ключи подтянуты с Google Диска');
         }
         const pa = $('#profile-author'); if (pa) pa.value = authorName();
         if (typeof updateSplashClock === 'function') updateSplashClock();

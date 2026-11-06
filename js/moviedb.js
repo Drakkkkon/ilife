@@ -386,18 +386,18 @@ function mvAiModelChain() {   // основная модель и, если св
     const c = mvCfg(), main = mvAiModel();
     return String(c.aiModel || '').trim() ? [main] : [main].concat(MV_AI_FALLBACKS[c.ai] || []);
 }
-async function mvAskAiText(parts) {   // общий вызов: parts = { text, imageBlob? } → строка ответа
+async function mvAskAiText(parts) {   // общий вызов: parts = { text, imageBlob?, maxTokens? } → строка ответа (его же использует разбор постов Telegram — js/telegram.js)
     const c = mvCfg(), key = mvKey('aiKey');
     if (!mvHasAi()) throw mvErr('nokey', 'ИИ не подключён');
     const b64 = parts.imageBlob ? await blobToBase64(parts.imageBlob) : '';
     const ask = async model => {
         if (c.ai === 'gemini') {
-            const body = { contents: [{ parts: [{ text: parts.text }].concat(b64 ? [{ inline_data: { mime_type: 'image/jpeg', data: b64 } }] : []) }], generationConfig: { response_mime_type: 'application/json' } };
+            const body = { contents: [{ parts: [{ text: parts.text }].concat(b64 ? [{ inline_data: { mime_type: 'image/jpeg', data: b64 } }] : []) }], generationConfig: Object.assign({ response_mime_type: 'application/json' }, parts.maxTokens ? { maxOutputTokens: parts.maxTokens } : {}) };
             const j = await mvFetch(GEMINI_API + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, 60000);
             const ps = (((j && j.candidates) || [])[0] || {}).content;
             return ((ps && ps.parts) || []).map(p => p.text || '').join('\n');
         }
-        const body = { model, max_tokens: 1200, messages: [{ role: 'user', content: (b64 ? [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } }] : []).concat([{ type: 'text', text: parts.text }]) }] };
+        const body = { model, max_tokens: parts.maxTokens || 1200, messages: [{ role: 'user', content: (b64 ? [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } }] : []).concat([{ type: 'text', text: parts.text }]) }] };
         const j = await mvFetch(CLAUDE_API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify(body) }, 60000);
         return ((j && j.content) || []).map(p => p.text || '').join('\n');
     };
