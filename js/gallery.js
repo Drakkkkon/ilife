@@ -278,7 +278,7 @@ function createGalSection(cfg) {
     function title(g) { const p = galParts(g); return p.d + ' ' + MONTHS_GEN[p.mo] + ' ' + p.y + ', ' + pad2(p.h) + ':' + pad2(p.mi); }
     function countText(n, rootKey) { const r = rootOf(rootKey); return n + ' ' + (r && r.badge ? r.badge : W); }
     function fileMeta(g) {
-        const bits = [g.w ? g.w + '×' + g.h : '', g.dur ? fmtDuration(g.dur) : '', fmtBytes(g.size || 0)];
+        const bits = [g.src === 'x' && g.xu ? '@' + g.xu : '', g.w ? g.w + '×' + g.h : '', g.dur ? fmtDuration(g.dur) : '', fmtBytes(g.size || 0)];
         if ((g.tags || []).length) bits.push(g.tags.slice(0, 3).map(t => '#' + t).join(' '));
         if ((g.actors || []).length) bits.push(g.actors.slice(0, 2).join(', '));
         return bits.filter(Boolean).join(' · ');
@@ -414,7 +414,7 @@ function createGalSection(cfg) {
             if (isVideo) fresh.forEach(c => accepted.push(c));
             else {
                 const order = fresh.slice().sort((a, b) => galBetter(a, b) ? -1 : galBetter(b, a) ? 1 : 0);
-                const pool = L().filter(g => g.sig && g.w).map(g => ({ g, w: g.w, h: g.h, size: g.size, sig: g.sig, _p: galSigParts(g.sig) }));
+                const pool = L().filter(g => g.sig && g.w && g.src !== 'x').map(g => ({ g, w: g.w, h: g.h, size: g.size, sig: g.sig, _p: galSigParts(g.sig) }));
                 for (const c of order) {
                     let hit = null, rel = '';
                     for (const p of pool) { rel = galRelation(c, p); if (rel) { hit = p; break; } }
@@ -528,6 +528,42 @@ function createGalSection(cfg) {
     }
     function save() { return cfg.save(); }
 
+    // ---------- Добавление готовых файлов извне (закладки X, js/xbookmarks.js) ----------
+    // list: [{ id, k, kind, name, date, cap, blob, thumb, w, h, dur, src, xu, xi }] — файл уже скачан, превью и размеры готовы.
+    // Записи складываются так же, как при импорте Telegram: оригинал и превью — в IndexedDB, метаданные — в список (и в Google Диск).
+    function makeId(key) { return cfg.idp + tgHash(key) + tgHash(key + '~'); }
+    async function addExternal(list) {
+        const now = Date.now(); let saved = 0, batch = [];
+        const flush = () => {
+            if (!batch.length) return;
+            const b = batch; batch = [];
+            L().push(...b);
+            if (!save()) {
+                b.forEach(i => { const ix = L().indexOf(i); if (ix >= 0) L().splice(ix, 1); BlobDB.del(i.id); });
+                throw new Error('Не хватило места в памяти браузера — часть файлов не сохранена');
+            }
+            saved += b.length;
+        };
+        try {
+            for (const c of list) {
+                const type = galMimeOf(c.blob, c, isVideo ? 'video/mp4' : 'image/jpeg');
+                await BlobDB.put({ id: c.id, blob: c.blob.type === type ? c.blob : new Blob([c.blob], { type }), thumb: c.thumb || null, name: c.name, type, size: c.blob.size });
+                const item = { id: c.id, kind: c.kind, name: c.name, size: c.blob.size, w: c.w || 0, h: c.h || 0, date: c.date || now, k: c.k, updatedAt: now };
+                if (c.dur) item.dur = Math.round(c.dur);
+                if (c.cap) item.cap = c.cap;
+                if (c.src) item.src = c.src;
+                if (c.xu) item.xu = c.xu;
+                if (c.xi) item.xi = c.xi;
+                item.tags = extractTags(c.cap || ''); item.actors = [];
+                autoActors(item);
+                batch.push(item);
+                if (batch.length >= (isVideo ? 5 : 20)) flush();
+            }
+        } finally { try { flush(); } catch (e) { console.warn(e); } }
+        await refreshLocal(); if ($(S('body'))) { renderCard(); renderBody(); } renderSwitch();
+        return saved;
+    }
+
     // ---------- ИИ: хештеги по содержанию и имена из текста ----------
     function aiPrompt(g) {
         return 'Ты помогаешь разложить ' + (isVideo ? 'видео по папкам (тебе показан один кадр из видео)' : 'фото по папкам') + '. Верни ТОЛЬКО JSON без пояснений и без markdown: {"tags":["…"],"names":["…"],"text":"…"}.\n' +
@@ -579,14 +615,20 @@ function createGalSection(cfg) {
     }
 
     // ---------- Папки ----------
-    function isLeaf(p) { const r = rootOf(p[0]); return r && r.kind ? p.length >= 4 : (p[0] === 'act' || p[0] === 'tag') ? p.length >= 2 : false; }
+    // Корни папок: «по дате» (kind — по виду файла, src — по источнику, например X) → год/месяц/день; xauth — «X · авторы»; act, tag — актёры и хештеги.
+    // Файлы из X (g.src === 'x') лежат ТОЛЬКО в своих папках «X (Твиттер)» и «X · авторы» и не смешиваются с файлами из Telegram.
+    const isDated = r => !!(r && (r.kind || r.src));
+    function isLeaf(p) { const r = rootOf(p[0]); return isDated(r) ? p.length >= 4 : (p[0] === 'act' || p[0] === 'tag' || (r && r.xauth)) ? p.length >= 2 : false; }
     function itemsOf(p) {
         const [r, a, b, c] = p; let arr = L(); const root = rootOf(r);
-        if (root && root.kind) {
-            arr = arr.filter(g => g.kind === root.kind);
+        if (isDated(root)) {
+            arr = root.src ? arr.filter(g => g.src === root.src) : arr.filter(g => g.kind === root.kind && g.src !== 'x');
             if (a) arr = arr.filter(g => String(galParts(g).y) === a);
             if (b) arr = arr.filter(g => pad2(galParts(g).mo + 1) === b);
             if (c) arr = arr.filter(g => pad2(galParts(g).d) === c);
+        } else if (root && root.xauth) {
+            arr = arr.filter(g => g.src === 'x' && g.xu);
+            if (a) arr = arr.filter(g => g.xu === a);
         } else if (r === 'act') {
             arr = arr.filter(g => (g.actors || []).length);
             if (a) arr = arr.filter(g => g.actors.includes(a));
@@ -600,7 +642,8 @@ function createGalSection(cfg) {
     function folderName(p, i) {   // название i-го элемента пути
         const k = p[i], r = rootOf(p[0]);
         if (i === 0) return (rootOf(k) || {}).name || k;
-        if (r && r.kind) { if (i === 1) return k; if (i === 2) return galMonthName(+k - 1); if (i === 3) return +k + ' ' + MONTHS_GEN[+p[2] - 1]; }
+        if (isDated(r)) { if (i === 1) return k; if (i === 2) return galMonthName(+k - 1); if (i === 3) return +k + ' ' + MONTHS_GEN[+p[2] - 1]; }
+        if (r && r.xauth) return '@' + k;
         if (p[0] === 'tag') return k === GAL_NOTAG ? 'Без хештегов' : '#' + k;
         return k;
     }
@@ -609,12 +652,13 @@ function createGalSection(cfg) {
         const sortMode = ui.sort;
         if (!p.length) return cfg.roots.map(x => { const it = itemsOf([x.key]); return { key: x.key, name: x.name, icon: x.icon, count: it.length, bytes: galBytes(it), cover: newest(it), rk: x.key }; });
         const r = p[0], groups = new Map(), put = (key, g) => { let v = groups.get(key); if (!v) groups.set(key, v = []); v.push(g); }, root = rootOf(r);
-        if (root && root.kind) { const lvl = p.length; items.forEach(g => { const q = galParts(g); put(lvl === 1 ? String(q.y) : lvl === 2 ? pad2(q.mo + 1) : pad2(q.d), g); }); }
+        if (isDated(root)) { const lvl = p.length; items.forEach(g => { const q = galParts(g); put(lvl === 1 ? String(q.y) : lvl === 2 ? pad2(q.mo + 1) : pad2(q.d), g); }); }
+        else if (root && root.xauth) items.forEach(g => put(g.xu, g));
         else if (r === 'act') items.forEach(g => (g.actors || []).forEach(a => put(a, g)));
         else if (r === 'tag') (p.length === 1 ? L() : items).forEach(g => { if (!(g.tags || []).length) put(GAL_NOTAG, g); else g.tags.forEach(t => put(t, g)); });   // «Без хештегов» — только на верхнем уровне
         const list = Array.from(groups.entries()).map(([key, it]) => ({ key, name: folderName(p.concat(key), p.length), icon: 'folder', count: it.length, bytes: galBytes(it), cover: newest(it), rk: r }));
         if (sortMode === 'big') list.sort((a, b) => b.bytes - a.bytes);
-        else if (root && root.kind) list.sort((a, b) => sortMode === 'old' ? (a.key < b.key ? -1 : 1) : (a.key < b.key ? 1 : -1));
+        else if (isDated(root)) list.sort((a, b) => sortMode === 'old' ? (a.key < b.key ? -1 : 1) : (a.key < b.key ? 1 : -1));
         else list.sort((a, b) => (a.key === GAL_NOTAG ? 1 : b.key === GAL_NOTAG ? -1 : a.name.localeCompare(b.name, 'ru')));
         return list;
     }
@@ -808,17 +852,19 @@ function createGalSection(cfg) {
 
     // ---------- Сохранение: файл, папка, выбранное ----------
     function dirOf(p, g) {   // подпапки внутри сохраняемой папки
-        const root = rootOf(p[0]); if (!root || !root.kind) return [];
+        const root = rootOf(p[0]);
+        if (root && root.xauth) return p.length === 1 ? [galSafe(g.xu)] : [];   // «X · авторы» целиком: по подпапке на каждого автора
+        if (!isDated(root)) return [];
         const q = galParts(g), dirs = [String(q.y), pad2(q.mo + 1) + ' ' + MONTHS_NOM[q.mo], pad2(q.d)];
         return dirs.slice(Math.max(0, p.length - 1));
     }
     function savePlan(p) {
         const entries = [], add = (items, top, sub) => items.forEach(g => entries.push({ g, dir: [].concat(top, sub(g)).filter(Boolean) }));
         if (!p.length) {
-            cfg.roots.filter(r => r.kind).forEach(r => add(itemsOf([r.key]), [cfg.zipRoot, r.name], g => dirOf([r.key], g)));
+            cfg.roots.filter(isDated).forEach(r => add(itemsOf([r.key]), [cfg.zipRoot, r.name], g => dirOf([r.key], g)));
             return { entries, zipName: cfg.zipRoot };
         }
-        const root = rootOf(p[0]), date = root && root.kind;
+        const root = rootOf(p[0]), date = isDated(root);
         const top = date ? (p.length === 1 ? folderName(p, 0) : p.slice(1).join('-')) : folderName(p, p.length - 1).replace(/^#/, '');
         add(itemsOf(p), galSafe(top), g => dirOf(p, g));
         return { entries, zipName: cfg.zipRoot + '_' + p.map((k, i) => folderName(p.slice(0, i + 1), i).replace(/^#/, '')).map(galSafe).join('_') };
@@ -929,6 +975,7 @@ function createGalSection(cfg) {
         el.innerHTML = (isVideo ? '<video controls playsinline preload="metadata" hidden></video><img class="gal-poster" alt="" hidden>' : '<img alt="">') +
             '<div class="gal-vmiss" hidden>' + ic('cloud_download') + '<span data-m>Оригинала нет на устройстве.</span><button type="button" class="btn btn-primary" data-v="fetch">' + ic('cloud_download') + '<span>Загрузить с Google Диска</span></button></div>' +
             '<div class="gal-vtop"><span class="gal-vcount"></span><span class="gal-vpf" hidden title="Подгружаем соседние фото с Google Диска">' + ic('cloud_download') + '<b></b></span><span class="gal-sp"></span>' +
+            '<button type="button" class="lb-btn" data-v="xopen" aria-label="Открыть пост в X" title="Открыть пост в X" hidden>' + ic('open_in_new') + '</button>' +
             '<button type="button" class="lb-btn" data-v="save" aria-label="Сохранить" title="Сохранить">' + ic('download') + '</button>' +
             '<button type="button" class="lb-btn" data-v="edit" aria-label="Хештеги и актёры" title="Хештеги и актёры">' + ic('tag') + '</button>' +
             '<button type="button" class="lb-btn" data-v="del" aria-label="Удалить" title="Удалить">' + ic('delete') + '</button>' +
@@ -990,6 +1037,7 @@ function createGalSection(cfg) {
             const g = list[i], my = ++token;
             $('.gal-vcount', el).textContent = (i + 1) + ' / ' + list.length;
             $('.gal-vinfo', el).innerHTML = '<b>' + esc(title(g)) + '</b><span>' + esc(fileMeta(g)) + '</span>' + (g.cap ? '<span class="cap">' + esc(g.cap.slice(0, 300)) + '</span>' : '');
+            $('[data-v="xopen"]', el).hidden = !(g.src === 'x' && g.xi);   // у файлов из X есть кнопка «Открыть пост»
             if (isVideo) { try { media.pause(); } catch (e) {} media.removeAttribute('src'); media.hidden = true; poster.hidden = true; poster.removeAttribute('src'); } else media.removeAttribute('src');
             miss.hidden = true;
             const u = await BlobDB.url(g.id);
@@ -1028,6 +1076,7 @@ function createGalSection(cfg) {
             if (act === 'close') closeViewer();
             else if (act === 'prev') go(-1); else if (act === 'next') go(1);
             else if (act === 'save') saveOne(g);
+            else if (act === 'xopen') { try { window.open('https://x.com/' + encodeURIComponent(g.xu || 'i') + '/status/' + encodeURIComponent(g.xi), '_blank', 'noopener'); } catch (err) { /* окно не открылось */ } }
             else if (act === 'fetch') fetchOne(g, token, true);
             else if (act === 'edit') editSheet([g], show);
             else if (act === 'del') await deleteItems([g], () => { list.splice(i, 1); if (!list.length) { closeViewer(); return; } if (i >= list.length) i = list.length - 1; show(); });
@@ -1121,6 +1170,7 @@ function createGalSection(cfg) {
 
     return {
         key: K, init, render, renderCard, refreshIfOpen, refreshLocal, open, downloadAll, cacheInfo, clearCache,
+        addExternal, makeId, setBusy(v) { busy = !!v; renderCard(); },
         list: L, label: W, isBusy: () => busy, count: () => L().length
     };
 }
@@ -1133,6 +1183,8 @@ const GAL = {
         roots: [
             { key: 'img', name: 'Картинки', icon: 'image', kind: 'image' },
             { key: 'gif', name: 'GIF', icon: 'gif', kind: 'gif', badge: 'GIF' },
+            { key: 'x', name: 'X (Твиттер)', icon: 'public', src: 'x' },
+            { key: 'xa', name: 'X · авторы', icon: 'alternate_email', xauth: true },
             { key: 'act', name: 'Актёры', icon: 'person' },
             { key: 'tag', name: 'Хештеги', icon: 'tag' }
         ]
@@ -1143,6 +1195,8 @@ const GAL = {
         roots: [
             { key: 'vid', name: 'Видео', icon: 'movie', kind: 'video' },
             { key: 'anim', name: 'GIF-анимации', icon: 'gif', kind: 'anim', badge: 'GIF' },
+            { key: 'x', name: 'X (Твиттер)', icon: 'public', src: 'x' },
+            { key: 'xa', name: 'X · авторы', icon: 'alternate_email', xauth: true },
             { key: 'act', name: 'Актёры', icon: 'person' },
             { key: 'tag', name: 'Хештеги', icon: 'tag' }
         ]
@@ -1157,6 +1211,7 @@ function galRenderSwitch() {
         const n = b.querySelector('.cnt'); if (n) n.textContent = GAL[b.dataset.sov].count() ? String(GAL[b.dataset.sov].count()) : '';
     });
     $$('.sov-pane').forEach(p => { p.hidden = p.id !== 'sov-' + galTab; });
+    if (typeof xbRefresh === 'function') xbRefresh();   // строка состояния блока «Фото и видео из X» (js/xbookmarks.js)
 }
 function galShowTab(k) {
     if (!GAL[k]) k = 'photo';

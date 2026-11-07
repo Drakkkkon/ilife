@@ -16,8 +16,6 @@ function showTab(id) {
     $$('[data-tab]').forEach(b => { if (b.tagName === 'BUTTON') { const on = b.dataset.tab === id; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'page' : 'false'); } });
     $('#fab').classList.toggle('is-hidden', id === 'settings' || id === 'sovsek' || id === 'scripts' || id === 'music');
     settings.lastTab = id; saveSettings();
-    const mnav = document.querySelector('.mobile-nav'), mact = mnav && mnav.querySelector('button.active');   // активный раздел виден в прокручиваемом нижнем меню
-    if (mact && mnav.scrollWidth > mnav.clientWidth + 2) { try { mnav.scrollTo({ left: mact.offsetLeft - (mnav.clientWidth - mact.offsetWidth) / 2, behavior: 'smooth' }); } catch (e) { mnav.scrollLeft = mact.offsetLeft - (mnav.clientWidth - mact.offsetWidth) / 2; } }
     if (document.readyState === 'complete') syncHash(id); else hashTab = id;   // пока страница грузится, адрес не трогаем: иначе Chrome «прокручивает к якорю» #id и сдвигает верх страницы
     window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
     if (id === 'settings') { renderStorageInfo(); renderSpotifyCard(); renderYoutubeCard(); renderTelegramCard(); renderGoogleCard(); renderMoviesCard(); if (googleClientId() && !gisReady()) loadGis(); }
@@ -76,8 +74,8 @@ function initNav() {
     });
     // «Инструкция» в блоках ключей → нужная инструкция в блоке «Сайты и инструкции» внизу настроек; «К блоку» → обратно к блоку ключей
     document.addEventListener('click', e => {
-        const i = e.target.closest('[data-instr]'), c = e.target.closest('[data-card]'), m = e.target.closest('[data-goto-music]');
-        if (i) openInstruction(i.dataset.instr); else if (c) gotoCard(c.dataset.card); else if (m) showTab('music');
+        const i = e.target.closest('[data-instr]'), c = e.target.closest('[data-card]'), m = e.target.closest('[data-goto-music]'), x = e.target.closest('[data-goto-xb]');
+        if (i) openInstruction(i.dataset.instr); else if (c) gotoCard(c.dataset.card); else if (m) showTab('music'); else if (x) { showTab('sovsek'); setTimeout(() => gotoCard('xb-card'), 120); }
     });
     // версия рядом с логотипом (главная, заставка, боковая панель) → журнал изменений
     document.addEventListener('click', e => { const v = e.target.closest('[data-goto-changelog]'); if (v) { e.preventDefault(); goToChangelog(); } });
@@ -95,6 +93,7 @@ async function bootstrap() {
     initYoutube();
     initTelegram();
     initGallery();
+    initXBookmarks();
     initTodo();
     initMovies();
     initMusic();

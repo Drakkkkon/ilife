@@ -41,7 +41,7 @@
             <!-- Логотип и версия: нажатие на версию открывает «Настройки → О приложении → Журнал изменений» -->
             <div class="splash-brand">
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.8.0</span><i data-i="chevron_right"></i></button>
+                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.9.0</span><i data-i="chevron_right"></i></button>
             </div>
             <h1 id="splash-greeting" style="font-size:24px;font-weight:400">Здравствуйте!</h1>
             <div class="splash-center">
@@ -64,7 +64,7 @@
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                 <div class="brand-txt">
                     <h2>iLife</h2>
-                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.8.0</span><i data-i="chevron_right"></i></button>
+                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.9.0</span><i data-i="chevron_right"></i></button>
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -89,7 +89,7 @@
                     <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                     <div class="brand-txt">
                         <b>iLife</b>
-                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.8.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
+                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.9.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
                     </div>
                 </div>
                 <!-- Поиск — в самом верху: по словам, #хештегам и датам -->
@@ -477,6 +477,10 @@
                 <header class="page-head">
                     <h1 class="page-title">Мое_совсек</h1>
                 </header>
+
+                <!-- Фото и видео из закладок X (Твиттер): блок рисует js/xbookmarks.js -->
+                <div id="xb-host"></div>
+
                 <div class="seg sov-seg" id="sov-switch" role="group" aria-label="Раздел">
                     <button type="button" data-sov="photo"><i data-i="photo_library"></i><span>Фото и GIF</span><span class="cnt"></span></button>
                     <button type="button" data-sov="video"><i data-i="movie"></i><span>Видео</span><span class="cnt"></span></button>
@@ -706,13 +710,24 @@
                     <div class="card-body">
                         <div class="about-head">
                             <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">1.8.0</span></div></div>
+                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">1.9.0</span></div></div>
                         </div>
                         <p style="margin-bottom:8px">Личное приложение для себя. Дизайн и логика — из My Money 4.8.1.</p>
                         <p class="hint" style="margin-bottom:16px"><b>Не для коммерческого использования:</b> приложение создано только для личных, некоммерческих целей — его нельзя продавать, сдавать в аренду или использовать в бизнесе. Логотип (папка «iLife ’09») — сторонняя картинка, права на неё принадлежат её владельцам; он используется здесь только в личных целях.</p>
 
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
+                        <div class="cl-version">
+                            <h4>1.9.0 <span class="cl-tag">Фото и видео из X · меню в два ряда</span></h4>
+                            <ul>
+                                <li>«Мое_совсек»: вверху страницы новый блок «Фото и видео из X (Твиттер)» — выгрузка фото и видео из закладок вашего аккаунта. Три способа на выбор: <b>«Скрипт»</b> (скрипт на странице «Закладки» сам пролистывает список и сохраняет файл, дальше iLife скачивает файлы), <b>«Экспорт»</b> (готовый экспорт расширения Twitter Web Exporter, ZIP или папка со скачанными файлами, например из gallery-dl) и <b>«Ссылки»</b> (ссылки на посты, фото и видео ищет сервис FxTwitter).</li>
+                                <li>Фото и видео из X сохраняются отдельно, как и обычные: фото — на странице «Фото и GIF», видео и GIF-анимации X (это mp4) — на странице «Видео». На обеих появились папки «X (Твиттер)» (год → месяц → день по дате поста) и «X · авторы» (по @имени). С файлами из Telegram они не смешиваются. Хештеги берутся из текста поста, у файла есть кнопка «Открыть пост в X».</li>
+                                <li>«Что брать»: можно скачивать только фото, только видео или только GIF. Повторный запуск добавляет лишь новые закладки; удалённые вами файлы не возвращаются.</li>
+                                <li>Нижнее меню на телефоне теперь в два ряда (четыре раздела сверху, три снизу) и больше не прокручивается.</li>
+                                <li>«Настройки → Сайты и инструкции»: новая группа ссылок «X (Твиттер)» и свёрнутая пошаговая инструкция «Фото и видео из закладок X».</li>
+                                <li>Версия 1.9.0 нужна на всех устройствах, где открывается «Мое_совсек»: записи из X синхронизируются через Google Диск вместе с остальными.</li>
+                            </ul>
+                        </div>
                         <div class="cl-version">
                             <h4>1.8.0 <span class="cl-tag">Кино: поиск по площадкам · Музыка</span></h4>
                             <ul>
@@ -866,6 +881,14 @@
                                 <li><a class="lk-a" href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>@BotFather</b><small>создать бота и получить токен</small></span></a></li>
                                 <li><a class="lk-a" href="https://desktop.telegram.org" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Telegram Desktop</b><small>нужен для «Экспорт истории чата»</small></span></a></li>
                             </ul></section>
+                            <section class="lk-group"><h4><i data-i="public"></i>X (Твиттер)</h4><ul class="lk-list">
+                                <li><a class="lk-a" href="https://x.com/i/bookmarks" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Закладки в X</b><small>x.com/i/bookmarks — здесь запускается скрипт</small></span></a></li>
+                                <li><a class="lk-a" href="https://www.tampermonkey.net" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Tampermonkey</b><small>tampermonkey.net — расширение для готовых скриптов</small></span></a></li>
+                                <li><a class="lk-a" href="https://github.com/prinsss/twitter-web-exporter/releases" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Twitter Web Exporter</b><small>готовый экспорт закладок в JSON / CSV</small></span></a></li>
+                                <li><a class="lk-a" href="https://github.com/mikf/gallery-dl" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>gallery-dl</b><small>скачивает файлы закладок в папку (для опытных)</small></span></a></li>
+                                <li><a class="lk-a" href="https://github.com/FixTweet/FxTwitter" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>FxTwitter</b><small>сервис для способа «Ссылки на посты»</small></span></a></li>
+                                <li><a class="lk-a" href="https://docs.x.com/x-api/getting-started/pricing" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>X API — цены</b><small>официальный API платный (в iLife не используется)</small></span></a></li>
+                            </ul></section>
                             <section class="lk-group"><h4><i data-i="link"></i>GitHub</h4><ul class="lk-list">
                                 <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Репозиторий iLife</b><small>github.com/Drakkkkon/ilife</small></span></a></li>
                                 <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife/upload/main" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Загрузить файлы новой версии</b><small>Add file → Upload files</small></span></a></li>
@@ -964,6 +987,48 @@
                                 <p class="hint" style="margin-top:0.5rem">Что поддерживается. MP3, M4A/AAC, FLAC, OGG/Opus и WAV — если ваш браузер умеет их проигрывать. Композитор берётся из тега «композитор» (если он не указан, раздел «Композиторы» будет пустым). Права на музыку принадлежат их владельцам: приложение показывает только вашу собственную коллекцию и ничего никуда не выкладывает.</p>
                             </div>
                         </details>
+                        <details class="fold" id="instr-x">
+                            <summary><i data-i="help"></i>Фото и видео из закладок X (Твиттер): как скачать — пошагово</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-goto-xb><i data-i="arrow_upward"></i>К блоку «Фото и видео из X» на странице «Мое_совсек»</button></p>
+                                <p class="hint">Почему так сложно. Официальный архив X («Настройки → Ваш аккаунт → Скачать архив данных») <b>закладки не содержит</b>, а официальный API X платный и из браузерного приложения недоступен. Поэтому закладки берутся с вашей же страницы X, пока вы в неё вошли. Фото попадут на страницу «Фото и GIF», видео и GIF-анимации — на страницу «Видео», каждое в свою папку «X (Твиттер)» (по дате поста) и «X · авторы». Выберите один из трёх способов.</p>
+
+                                <p class="xb-h">Способ 1. Скрипт на странице «Закладки» — рекомендуется (только на компьютере)</p>
+                                <ol class="steps">
+                                    <li>На компьютере откройте Chrome, Edge или Firefox и войдите на <a href="https://x.com/i/bookmarks" target="_blank" rel="noopener noreferrer">x.com</a> в тот аккаунт, чьи закладки нужны. Откройте любую страницу X (лучше «Закладки»).</li>
+                                    <li>Скопируйте скрипт: <button type="button" class="btn btn-primary" data-xb-copy style="margin:0.25rem 0"><i data-i="content_copy"></i>Скопировать скрипт</button> (такая же кнопка есть в блоке «Фото и видео из X» на странице «Мое_совсек»). Если iLife открыт на телефоне — скопируйте и отправьте скрипт себе на компьютер любым мессенджером или в заметки.</li>
+                                    <li>На странице X нажмите <b>F12</b> (в Chrome и Edge ещё работает Ctrl+Shift+J; на Mac — Cmd+Option+J) и откройте вкладку <b>Console</b> («Консоль»).</li>
+                                    <li>Браузер может предупредить, что вставлять чужой код опасно, и не дать вставить. Напечатайте в консоли <span class="code">allow pasting</span> и нажмите Enter, потом вставьте скрипт (Ctrl+V) и нажмите Enter. Скрипт можно прочитать целиком: он ничего никуда не отправляет, а только слушает ответы, которые X сам присылает странице «Закладки». Вставляйте в консоль только то, чему доверяете.</li>
+                                    <li>В правом нижнем углу страницы появится панель <b>«iLife · закладки X»</b>. Нажмите <b>Начать</b>. Скрипт сам откроет «Закладки» и будет листать их вниз; не закрывайте вкладку и не листайте сами. Сто закладок — около минуты, тысяча — 10–15 минут. Если X попросит подождать, скрипт выждет минуту и продолжит.</li>
+                                    <li>Когда панель напишет «Готово», нажмите <b>Скачать файл (.json)</b>. Это небольшой файл со ссылками, он сохранится в «Загрузки». Если iLife потом не сможет скачать сами файлы, нажмите вместо этого <b>Скачать с файлами (ZIP)</b>: скрипт скачает фото и видео прямо на странице X и сложит их в архивы (каждый около 600 МБ). Если браузер спросит про несколько загрузок — разрешите.</li>
+                                    <li>В iLife откройте «Мое_совсек» → блок «Фото и видео из X» → вкладка «Скрипт» → <b>«Выбрать файл от скрипта»</b> и выберите файл (или сразу все архивы). iLife скачает файлы и разложит по папкам.</li>
+                                </ol>
+                                <p class="hint">Повторный запуск безопасен: новые закладки добавятся, уже добавленные пропустятся, а удалённые вами из iLife не вернутся.</p>
+
+                                <p class="xb-h">Способ 2. Готовый экспорт или уже скачанные файлы</p>
+                                <ol class="steps">
+                                    <li>Установите на компьютере расширение <b>Tampermonkey</b> и скрипт <b>Twitter Web Exporter</b> (ссылки — в списке сайтов выше). Откройте <a href="https://x.com/i/bookmarks" target="_blank" rel="noopener noreferrer">x.com/i/bookmarks</a>, пролистайте закладки до конца, в панели скрипта экспортируйте закладки в <b>JSON</b> (или CSV).</li>
+                                    <li>В iLife: блок «Фото и видео из X» → вкладка «Экспорт» → <b>«Выбрать файлы или ZIP»</b> и выберите этот файл. Кнопка «Export Media» у того же скрипта даёт ZIP с самими фото и видео — его тоже можно выбрать (дата и автор подхватятся, если они есть в названиях файлов).</li>
+                                    <li>Для опытных: программа <b>gallery-dl</b> скачивает закладки в папку командой <span class="code">gallery-dl --cookies-from-browser chrome "https://x.com/i/bookmarks"</span>. Потом в iLife нажмите <b>«Выбрать папку»</b> и укажите скачанную папку: дата берётся из номера поста в названии файла, автор — из имени вложенной папки.</li>
+                                </ol>
+                                <p class="hint">Форматы чужих экспортов бывают разными. iLife ищет в них адреса картинок и видео X сам; если пишет, что ничего не нашёл, используйте способ 1.</p>
+
+                                <p class="xb-h">Способ 3. Ссылки на посты</p>
+                                <ol class="steps">
+                                    <li>В X у нужного поста нажмите «Поделиться» → «Копировать ссылку». Так соберите нужные ссылки.</li>
+                                    <li>В iLife: блок «Фото и видео из X» → вкладка «Ссылки» → вставьте ссылки (по одной в строке) → <b>«Скачать фото и видео»</b>. Закрытые и удалённые посты пропускаются.</li>
+                                </ol>
+                                <p class="hint">Ссылки при этом отправляются общедоступному сервису FxTwitter (api.fxtwitter.com), больше никому. Способ удобен для отдельных постов, а не для сотен закладок.</p>
+
+                                <p class="xb-h">Если не получилось</p>
+                                <ol class="steps">
+                                    <li><b>Скрипт пишет «Пока ничего не поймано».</b> Нажмите в меню слева X «Главная», затем «Закладки» — скрипт ловит то, что X присылает при открытии списка.</li>
+                                    <li><b>iLife пишет, что браузер не даёт скачивать файлы с серверов X.</b> Запустите скрипт ещё раз и возьмите «Скачать с файлами (ZIP)» — он скачивает файлы изнутри страницы X, где это разрешено.</li>
+                                    <li><b>Скрипт перестал работать после обновления X.</b> X иногда меняет устройство страниц; тогда используйте способ 2 или 3, а скрипт придётся обновить в новой версии iLife.</li>
+                                    <li><b>Официальный API X.</b> В iLife не используется: он платный (по ценам X на сегодня — около 0,001 $ за каждую прочитанную закладку, нужны аккаунт разработчика и пополненный баланс), а браузерному приложению без собственного сервера к нему не подключиться.</li>
+                                </ol>
+                            </div>
+                        </details>
                     </div>
                 </div>
             </section>
@@ -999,6 +1064,7 @@
     <script src="js/idea-folders.js"></script>
     <script src="js/telegram.js"></script>
     <script src="js/gallery.js"></script>
+    <script src="js/xbookmarks.js"></script>
     <script src="js/todo.js"></script>
     <script src="js/moviedb.js"></script>
     <script src="js/moviesearch.js"></script>
