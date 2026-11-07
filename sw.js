@@ -1,11 +1,11 @@
-// iLife — служебный воркер: приложение открывается и без интернета (кроме погоды, курсов, шрифта Google, входа Google, Spotify, YouTube, Telegram, ИИ и баз фильмов).
+// iLife — служебный воркер: приложение открывается и без интернета (кроме погоды, курсов, шрифта Google, входа Google, Spotify, YouTube, Telegram, ИИ, баз фильмов и новых песен с Google Диска; скачанные песни играют и без сети).
 // Файлы приложения кешируются при первом открытии; при выходе новой версии меняйте CACHE (число в конце) — старый кеш удалится сам.
-const CACHE = 'ilife-v1.7.1';
+const CACHE = 'ilife-v1.8.0';
 const CORE = [
     './', 'index.html', 'manifest.webmanifest', 'favicon.ico',
     'css/android.css', 'css/app.css',
     'js/icons.js', 'js/core.js', 'js/theme.js', 'js/pdf-fonts.js', 'js/android.js', 'js/media.js', 'js/splash.js', 'js/spotify.js', 'js/youtube.js',
-    'js/ideas.js', 'js/idea-folders.js', 'js/telegram.js', 'js/gallery.js', 'js/todo.js', 'js/moviedb.js', 'js/recognize.js', 'js/movies.js', 'js/songs.js', 'js/scripts.js', 'js/gdrive.js', 'js/pdf.js', 'js/pdf-export.js', 'js/settings.js', 'js/app.js',
+    'js/ideas.js', 'js/idea-folders.js', 'js/telegram.js', 'js/gallery.js', 'js/todo.js', 'js/moviedb.js', 'js/moviesearch.js', 'js/recognize.js', 'js/movies.js', 'js/songs.js', 'js/scripts.js', 'js/gdrive.js', 'js/musictags.js', 'js/music.js', 'js/musicplayer.js', 'js/pdf.js', 'js/pdf-export.js', 'js/settings.js', 'js/app.js',
     'images/icon-192.png', 'images/icon-512.png', 'images/icon-maskable-192.png', 'images/icon-maskable-512.png', 'images/apple-touch-icon.png',
     'images/favicon-32.png', 'images/favicon-48.png', 'images/logo.png'
 ];

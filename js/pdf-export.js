@@ -174,32 +174,42 @@ async function exportTodoPdf(o) {
 }
 
 // ---------- Кино ----------
+// Два вида файла: «Стандартный» (карточки с обложками, оценками, режиссёром и актёрами) и «Полный список» (все фильмы одной
+// таблицей без обложек: номер, название, год и тип, оценки, ваша оценка, статус) — компактно, удобно распечатать или переслать.
 function openMoviesPdfSheet() {
     if (!movies.length) { toast('Пока нечего выводить в PDF'); return; }
     const n = st => movies.filter(m => mvStatusOf(m) === st).length;
-    const row = (v, title, sub, on) => '<label class="opt-row"><input type="radio" name="pdf-mv" value="' + v + '"' + (on ? ' checked' : '') + '><span><b>' + title + '</b><span class="sub">' + sub + '</span></span></label>';
-    const html = '<p class="hint" style="margin:0 4px 8px">В PDF попадут обложка, название, оценки сервисов, режиссёр, актёры, ваша оценка и заметка.</p>' +
-        row('all', 'Всё', movies.length + ' шт.', true) +
-        row('queue', 'Список для просмотра', n('queue') + ' шт.', false) +
-        row('watching', 'Смотрю сейчас', n('watching') + ' шт.', false) +
-        row('watched', 'Просмотрено', n('watched') + ' шт.', false) +
-        '<label class="opt-row"><span style="flex:1"><b>Вставить обложки</b><span class="sub">Файл получится больше</span></span><input type="checkbox" class="switch" id="pdf-mv-img" checked></label>';
+    const row = (name, v, title, sub, on) => '<label class="opt-row"><input type="radio" name="' + name + '" value="' + v + '"' + (on ? ' checked' : '') + '><span><b>' + title + '</b><span class="sub">' + sub + '</span></span></label>';
+    const html = '<h4 class="opt-h">Вид файла</h4>' +
+        row('pdf-mv-fmt', 'cards', 'Стандартный — с обложками', 'Карточки: обложка, название, оценки сервисов, режиссёр, актёры, ваша оценка и заметка', mvUi.view !== 'list') +
+        row('pdf-mv-fmt', 'list', 'Полный список — без обложек', 'Одна таблица: номер, название, год, тип, оценки, ваша оценка и статус; файл маленький', mvUi.view === 'list') +
+        '<h4 class="opt-h">Что включить</h4>' +
+        row('pdf-mv', 'all', 'Всё', movies.length + ' шт.', true) +
+        row('pdf-mv', 'queue', 'Список для просмотра', n('queue') + ' шт.', false) +
+        row('pdf-mv', 'watching', 'Смотрю сейчас', n('watching') + ' шт.', false) +
+        row('pdf-mv', 'watched', 'Просмотрено', n('watched') + ' шт.', false);
     openSheet({
         title: 'Кино в PDF', html,
         actions: [{ label: 'Отмена' }, { label: 'Сохранить PDF', kind: 'primary', icon: 'picture_as_pdf', async onClick(s) {
             const btn = $('.btn-primary', s.el); btn.disabled = true; btn.textContent = 'Готовим PDF…';
-            try { await exportMoviesPdf({ scope: ($('input[name="pdf-mv"]:checked', s.el) || {}).value || 'all', images: $('#pdf-mv-img', s.el).checked }); }
+            const val = nm => ($('input[name="' + nm + '"]:checked', s.el) || {}).value;
+            try { await exportMoviesPdf({ scope: val('pdf-mv') || 'all', format: val('pdf-mv-fmt') === 'list' ? 'list' : 'cards' }); }
             catch (e) { console.error(e); toast('Не удалось собрать PDF'); }
         } }]
     });
 }
 
-async function exportMoviesPdf(o) {
-    const accent = pdfAccent();
-    const groups = [['watching', 'Смотрю сейчас'], ['queue', 'Список для просмотра'], ['watched', 'Просмотрено']]
-        .filter(g => o.scope === 'all' || o.scope === g[0])
+function mvPdfGroups(scope) {
+    return [['watching', 'Смотрю сейчас'], ['queue', 'Список для просмотра'], ['watched', 'Просмотрено']]
+        .filter(g => scope === 'all' || scope === g[0])
         .map(g => [g[1], movies.filter(m => mvStatusOf(m) === g[0]).sort(g[0] === 'watched' ? (a, b) => (b.watchedAt || 0) - (a.watchedAt || 0) : (a, b) => (b.addedAt || 0) - (a.addedAt || 0)), g[0]])
         .filter(g => g[1].length);
+}
+
+async function exportMoviesPdf(o) {
+    if (o.format === 'list') return exportMoviesListPdf(o);
+    const accent = pdfAccent();
+    const groups = mvPdfGroups(o.scope);
     if (!groups.length) { toast('По выбранным условиям фильмов нет'); return; }
     const total = groups.reduce((s, g) => s + g[1].length, 0);
     const pdf = new PdfWriter({ title: 'iLife — Кино', footer: 'iLife · Кино · ' + authorName() });
@@ -209,8 +219,8 @@ async function exportMoviesPdf(o) {
         pdf.textAt(title, pdf.mx, pdf.y + 12, 13, { bold: true, color: accent });
         pdf.y += 20; pdf.line(pdf.mx, pdf.y, pdf.W - pdf.mx, pdf.y, '#cac4d0', 0.6); pdf.gap(9);
         for (const m of list) {
-            const rec = o.images && m.coverId ? await BlobDB.get(m.coverId) : null;
-            const img = rec ? await pdfImageFromBlob(rec.blob, 360, 0.8) : null;
+            const rec = m.coverId ? await BlobDB.get(m.coverId) : null;
+            const img = rec && rec.blob ? await pdfImageFromBlob(rec.blob, 360, 0.8) : null;
             const coverW = 54, coverH = 81, tx = pdf.mx + (img ? coverW + 14 : 0), textW = pdf.cw - (img ? coverW + 14 : 0);
             const rows = [];   // строки текста: [текст, размер, жирный, цвет]
             const add = (text, size, bold, color) => pdf.wrap(text, size, bold, textW).forEach(l => rows.push([l, size, bold, color]));
@@ -239,4 +249,50 @@ async function exportMoviesPdf(o) {
         pdf.gap(6);
     }
     return finishPdf(pdf, 'Кино');
+}
+
+// Полный список без обложек: одна таблица на все выбранные фильмы, по алфавиту
+async function exportMoviesListPdf(o) {
+    const accent = pdfAccent();
+    const groups = mvPdfGroups(o.scope);
+    if (!groups.length) { toast('По выбранным условиям фильмов нет'); return; }
+    const list = [];
+    groups.forEach(g => g[1].forEach(m => list.push(m)));
+    list.sort((a, b) => String(a.title).localeCompare(String(b.title), 'ru'));
+    const pdf = new PdfWriter({ title: 'iLife — Кино (полный список)', footer: 'iLife · Кино · полный список · ' + authorName() });
+    const cnt = st => list.filter(m => mvStatusOf(m) === st).length;
+    pdfHeader(pdf, 'Кино — полный список', 'Всего: ' + list.length + '  ·  хочу посмотреть: ' + cnt('queue') + '  ·  смотрю: ' + cnt('watching') + '  ·  просмотрено: ' + cnt('watched') + '  ·  по алфавиту', accent);
+    const C = { num: pdf.mx, title: pdf.mx + 26, kind: pdf.mx + 252, rate: pdf.mx + 306, mine: pdf.mx + 424, st: pdf.W - pdf.mx };
+    const head = () => {
+        pdf.rect(pdf.mx, pdf.y, pdf.cw, 18, '#ece6f0', 5);
+        const y = pdf.y + 12.5, o2 = { bold: true, color: '#49454f' };
+        pdf.textAt('№', C.num + 5, y, 8.5, o2); pdf.textAt('Название', C.title, y, 8.5, o2); pdf.textAt('Тип', C.kind, y, 8.5, o2);
+        pdf.textAt('Оценки', C.rate, y, 8.5, o2); pdf.textAt('Моя', C.mine, y, 8.5, o2); pdf.textAt('Статус', C.st, y, 8.5, Object.assign({ align: 'right' }, o2));
+        pdf.y += 22;
+    };
+    head();
+    const SHORT = { kp: 'КП', imdb: 'IMDb', tmdb: 'TMDB', rt: 'RT', mc: 'MC' };
+    const STAT = { queue: 'хочу', watching: 'смотрю', watched: 'смотрел' };
+    list.forEach((m, i) => {
+        const titleLines = pdf.wrap(m.title + (m.year ? ' (' + m.year + ')' : ''), 9.6, true, 218);
+        const origOk = m.origTitle && mvNorm(m.origTitle) !== mvNorm(m.title);
+        const origLines = origOk ? pdf.wrap(m.origTitle, 8, false, 218).slice(0, 1) : [];
+        const avg = mvAvgRating(m.ratings), rp = [];
+        if (avg) rp.push('ср. ' + String(avg).replace('.', ','));
+        MV_SOURCES.forEach(s => { const v = Number((m.ratings || {})[s.key]); if (v > 0 && (s.key === 'kp' || s.key === 'imdb' || (!avg && rp.length < 2))) rp.push(SHORT[s.key] + ' ' + mvRatingText(s, v)); });
+        const rateLines = rp.length ? pdf.wrap(rp.join(' · '), 8.4, false, 114) : [];
+        const lines = Math.max(titleLines.length + origLines.length, rateLines.length, 1), h = lines * 11.2 + 7;
+        if (pdf.y + h > pdf.H - pdf.mb) { pdf.newPage(); head(); }
+        const y0 = pdf.y;
+        if (i % 2 === 0) pdf.rect(pdf.mx, y0 - 1, pdf.cw, h, '#faf6fd', 4);
+        pdf.textAt(String(i + 1), C.num + 5, y0 + 9, 8.2, { color: '#79747e' });
+        titleLines.forEach((l, k) => pdf.textAt(l, C.title, y0 + 9 + k * 11.2, 9.6, { bold: true, color: '#1d1b20' }));
+        origLines.forEach(l => pdf.textAt(l, C.title, y0 + 9 + titleLines.length * 11.2, 8, { color: '#79747e' }));
+        pdf.textAt(m.type === 'tv' ? 'сериал' : 'фильм', C.kind, y0 + 9, 8.6, { color: '#49454f' });
+        rateLines.forEach((l, k) => pdf.textAt(l, C.rate, y0 + 9 + k * 11.2, 8.4, { color: accent, bold: k === 0 && !!avg }));
+        pdf.textAt(m.myRating ? m.myRating + '/10' : '—', C.mine, y0 + 9, 9, { bold: !!m.myRating, color: m.myRating ? '#146c2e' : '#79747e' });
+        pdf.textAt(STAT[mvStatusOf(m)], C.st, y0 + 9, 8.6, { align: 'right', color: mvStatusOf(m) === 'watched' ? '#146c2e' : mvStatusOf(m) === 'watching' ? '#7d5260' : '#49454f', bold: true });
+        pdf.y = y0 + h;
+    });
+    return finishPdf(pdf, 'Кино_список');
 }

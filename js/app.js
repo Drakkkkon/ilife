@@ -4,7 +4,7 @@
 // служебный воркер (работа без сети).
 // =====================================================================================================
 
-const TABS = ['ideas', 'todo', 'movies', 'scripts', 'sovsek', 'settings'];
+const TABS = ['ideas', 'todo', 'movies', 'music', 'scripts', 'sovsek', 'settings'];
 const collapsedCards = new Set(LS.get('collapsed', []));   // свёрнутые блоки; состояние запоминается
 
 let hashTab = null;   // вкладка, адрес которой (#id) ещё не записан в строку браузера
@@ -14,13 +14,16 @@ function showTab(id) {
     if (!TABS.includes(id)) id = 'ideas';
     $$('.tab').forEach(t => t.classList.toggle('is-active', t.id === id));
     $$('[data-tab]').forEach(b => { if (b.tagName === 'BUTTON') { const on = b.dataset.tab === id; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'page' : 'false'); } });
-    $('#fab').classList.toggle('is-hidden', id === 'settings' || id === 'sovsek' || id === 'scripts');
+    $('#fab').classList.toggle('is-hidden', id === 'settings' || id === 'sovsek' || id === 'scripts' || id === 'music');
     settings.lastTab = id; saveSettings();
+    const mnav = document.querySelector('.mobile-nav'), mact = mnav && mnav.querySelector('button.active');   // активный раздел виден в прокручиваемом нижнем меню
+    if (mact && mnav.scrollWidth > mnav.clientWidth + 2) { try { mnav.scrollTo({ left: mact.offsetLeft - (mnav.clientWidth - mact.offsetWidth) / 2, behavior: 'smooth' }); } catch (e) { mnav.scrollLeft = mact.offsetLeft - (mnav.clientWidth - mact.offsetWidth) / 2; } }
     if (document.readyState === 'complete') syncHash(id); else hashTab = id;   // пока страница грузится, адрес не трогаем: иначе Chrome «прокручивает к якорю» #id и сдвигает верх страницы
     window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
     if (id === 'settings') { renderStorageInfo(); renderSpotifyCard(); renderYoutubeCard(); renderTelegramCard(); renderGoogleCard(); renderMoviesCard(); if (googleClientId() && !gisReady()) loadGis(); }
     if (id === 'ideas') renderTelegramBlock();
     if (id === 'movies') renderMovies();
+    if (id === 'music') musicTabOpened();
     if (id === 'sovsek') renderGallery();
     if (id === 'scripts') renderScripts();
     if (id === 'ideas') renderSongs();
@@ -44,8 +47,10 @@ function goToChangelog() {
 function flashEl(el) { el.classList.add('is-flash'); setTimeout(() => el.classList.remove('is-flash'), 1900); }
 function openInstruction(id) {
     const d = document.getElementById(id), card = document.getElementById('links-card'); if (!d || !card) return;
+    const away = !$('#settings').classList.contains('is-active');   // ссылка «Инструкция» может стоять на другой странице (например, «Музыка»)
+    if (away) showTab('settings');
     card.classList.remove('is-collapsed'); d.open = true;
-    setTimeout(() => { d.scrollIntoView({ behavior: 'smooth', block: 'start' }); flashEl(d); }, 80);
+    setTimeout(() => { d.scrollIntoView({ behavior: 'smooth', block: 'start' }); flashEl(d); }, away ? 160 : 80);
 }
 function gotoCard(id) {
     const c = document.getElementById(id); if (!c) return;
@@ -71,8 +76,8 @@ function initNav() {
     });
     // «Инструкция» в блоках ключей → нужная инструкция в блоке «Сайты и инструкции» внизу настроек; «К блоку» → обратно к блоку ключей
     document.addEventListener('click', e => {
-        const i = e.target.closest('[data-instr]'), c = e.target.closest('[data-card]');
-        if (i) openInstruction(i.dataset.instr); else if (c) gotoCard(c.dataset.card);
+        const i = e.target.closest('[data-instr]'), c = e.target.closest('[data-card]'), m = e.target.closest('[data-goto-music]');
+        if (i) openInstruction(i.dataset.instr); else if (c) gotoCard(c.dataset.card); else if (m) showTab('music');
     });
     // версия рядом с логотипом (главная, заставка, боковая панель) → журнал изменений
     document.addEventListener('click', e => { const v = e.target.closest('[data-goto-changelog]'); if (v) { e.preventDefault(); goToChangelog(); } });
@@ -92,6 +97,7 @@ async function bootstrap() {
     initGallery();
     initTodo();
     initMovies();
+    initMusic();
     initSongs();
     initScripts();
     initSettings();

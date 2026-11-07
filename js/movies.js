@@ -12,10 +12,10 @@
 
 let movies = LS.get('movies', []);
 if (!Array.isArray(movies)) movies = [];
-const mvUi = Object.assign({ sort: 'new' }, LS.get('movie_ui', {}));
-const mvShown = { queue: 24, watched: 24 };
+const mvUi = Object.assign({ sort: 'new', view: 'cards', allSort: 'new', allFilter: 'all' }, LS.get('movie_ui', {}));   // view: 'cards' (с обложками) | 'list' (списком, без обложек)
+const mvShown = { queue: 24, watched: 24, all: 24, watching: 24 };
 const mvBusy = new Set();           // id фильмов, у которых прямо сейчас подгружаются данные
-let mvSearchSeq = 0, mvHits = [], mvRefreshing = false;
+let mvRefreshing = false;
 
 const MV_STATUS = { queue: 'Хочу посмотреть', watching: 'Смотрю', watched: 'Просмотрено' };
 const MV_SHORT = { kp: 'Кинопоиск', imdb: 'IMDb', tmdb: 'TMDB', rt: 'Rotten T.', mc: 'Metacritic' };
@@ -33,6 +33,8 @@ function mvFindDup(spec) {
     const nt = mvNorm(spec.title), nto = mvNorm(spec.origTitle), tid = spec.tmdbId, ty = spec.type === 'tv' ? 'tv' : 'movie';
     return movies.find(m => {
         const mty = m.type === 'tv' ? 'tv' : 'movie';
+        if (spec.imdbId && m.imdbId && spec.imdbId === m.imdbId) return true;                          // один и тот же фильм, выбранный на разных площадках
+        if (spec.kpId && m.kpId && String(spec.kpId) === String(m.kpId)) return true;
         if (tid && m.tmdbId) return m.tmdbId === tid && mty === ty;
         if (mty !== ty) return false;
         const mt = mvNorm(m.title), mo = mvNorm(m.origTitle);
@@ -78,7 +80,12 @@ async function mvAddMovie(spec, status, o) {
     if (dup) return { dup: true, movie: dup, warn: [] };
     const now = Date.now(), st = status === 'watching' || status === 'watched' ? status : 'queue';
     const m = { id: uid('m'), status: st, type: spec.type === 'tv' ? 'tv' : 'movie', title, origTitle: spec.origTitle || '', year: spec.year || null, tmdbId: spec.tmdbId || null,
-        posterPath: '', overview: spec.overview || '', ratings: {}, myRating: null, note: '', src: o.src || 'search', addedAt: now, updatedAt: now };
+        posterPath: spec.posterPath || '', overview: spec.overview || '', ratings: {}, myRating: null, note: '', src: o.src || 'search', addedAt: now, updatedAt: now };
+    if (spec.imdbId) m.imdbId = spec.imdbId;                       // фильм выбран на другой площадке (Кинопоиск, IMDb, TVMaze): запоминаем её номера и обложку
+    if (spec.kpId) m.kpId = spec.kpId;
+    if (spec.posterUrl && (!spec.tmdbId || !mvHasTmdb())) m.posterUrl = spec.posterUrl;
+    if (spec.genres && spec.genres.length) m.genres = spec.genres.slice(0, 4);
+    if (spec.ratings) Object.keys(spec.ratings).forEach(k => { if (spec.ratings[k] > 0) m.ratings[k] = spec.ratings[k]; });
     if (spec.tmdb) m.ratings.tmdb = spec.tmdb;
     if (st === 'watching') m.startedAt = now;
     if (st === 'watched') m.watchedAt = now;
@@ -245,10 +252,28 @@ function mvHydrate(root) {
         if (u) im.src = u; else im.style.display = 'none';
     });
 }
-function mvListHtml(list, key) {
-    const slice = list.slice(0, mvShown[key] || 9999);
-    return '<div class="mv-items">' + slice.map(mvCardHtml).join('') + '</div>' +
+// Строка списка без обложки (вид «Списком»): название, год и тип, среднее по оценкам, ваша оценка, статус и меню действий
+const MV_ST_ICON = { queue: 'bookmark', watching: 'visibility', watched: 'done_all' };
+function mvRowHtml(m, showStatus) {
+    const st = mvStatusOf(m), sc = mvScore(m), busy = mvBusy.has(m.id);
+    const cls = sc >= 7.5 ? 'r-good' : sc >= 6 ? 'r-mid' : 'r-bad';
+    return '<article class="mv-row' + (busy ? ' is-busy' : '') + '" data-id="' + esc(m.id) + '">' +
+        '<button type="button" class="mv-row-main" data-mv="info" aria-label="Подробнее: ' + esc(m.title) + '"><span class="mv-row-title">' + esc(m.title) + '</span>' +
+        '<span class="mv-row-sub">' + esc(mvMetaLine(m)) + (m.origTitle && mvNorm(m.origTitle) !== mvNorm(m.title) ? ' · ' + esc(m.origTitle) : '') + '</span></button>' +
+        (m.myRating ? '<span class="mv-row-mine" title="Моя оценка">' + ic('star') + m.myRating + '</span>' : '') +
+        (sc ? '<span class="rt ' + cls + ' mv-row-rt" title="Среднее по источникам"><b>' + String(mvRound1(sc)).replace('.', ',') + '</b></span>' : '') +
+        (showStatus ? '<span class="mv-row-st st-' + st + '" title="' + esc(MV_STATUS[st]) + '">' + ic(MV_ST_ICON[st]) + '</span>' : '') +
+        '<button type="button" class="icon-btn" data-mv="menu" aria-label="Действия: ' + esc(m.title) + '">' + ic('more_vert') + '</button></article>';
+}
+function mvListHtml(list, key, showStatus) {
+    const slice = list.slice(0, mvShown[key] || 9999), list_ = mvUi.view === 'list';
+    return '<div class="' + (list_ ? 'mv-rows' : 'mv-items') + '">' + slice.map(m => list_ ? mvRowHtml(m, !!showStatus) : mvCardHtml(m)).join('') + '</div>' +
         (list.length > slice.length ? '<div style="text-align:center;margin:0.75rem 0 0.25rem"><button type="button" class="btn" data-mv="more" data-list="' + key + '">Показать ещё (' + (list.length - slice.length) + ')</button></div>' : '');
+}
+function mvAllList() {
+    let a = movies.slice();
+    if (mvUi.allFilter !== 'all') a = a.filter(m => mvStatusOf(m) === mvUi.allFilter);
+    return mvSorted(a, mvUi.allSort);
 }
 function renderMovies() {
     if (!$('#movies-queue')) return;
@@ -256,23 +281,57 @@ function renderMovies() {
     const watching = by('watching').sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
     const queue = mvSorted(by('queue'), mvUi.sort);
     const watched = by('watched').sort((a, b) => (b.watchedAt || 0) - (a.watchedAt || 0));
+    const all = mvAllList();
     $('#movies-watching-n').textContent = watching.length || '';
     $('#movies-queue-n').textContent = queue.length || '';
     $('#movies-watched-n').textContent = watched.length || '';
+    $('#movies-all-n').textContent = movies.length || '';
     $('#movies-watching').innerHTML = watching.length ? mvListHtml(watching, 'watching')
         : '<div class="mv-empty">' + ic('tv') + '<span>Сейчас ничего не смотрите. Нажмите «Смотрю» у фильма из списка — он появится здесь.</span></div>';
     $('#movies-queue').innerHTML = queue.length ? mvListHtml(queue, 'queue')
-        : '<div class="empty"><div class="ico-big">' + ic('bookmark') + '</div><b>Список пока пуст</b>Найдите фильм по названию в строке поиска сверху или загрузите скриншоты — найденное появится здесь.</div>';
+        : '<div class="empty"><div class="ico-big">' + ic('bookmark') + '</div><b>Список пока пуст</b>Найдите фильм по названию в строке «Добавить фильм» сверху или загрузите скриншоты — найденное появится здесь.</div>';
     $('#movies-watched').innerHTML = watched.length ? mvListHtml(watched, 'watched')
         : '<div class="mv-empty">' + ic('done_all') + '<span>Здесь будут фильмы, которые вы отметили кнопкой «Посмотрел», — с вашими оценками.</span></div>';
+    $('#movies-all').innerHTML = all.length ? mvListHtml(all, 'all', true)
+        : movies.length ? '<div class="mv-empty">' + ic('filter_list') + '<span>В этом разделе фильмов нет — выберите другой фильтр.</span></div>'
+        : '<div class="mv-empty">' + ic('movie') + '<span>Все фильмы и сериалы, которые вы добавили, собираются здесь — что бы вы с ними ни делали. Начните с строки «Добавить фильм» сверху.</span></div>';
     $$('#movies-sort button').forEach(b => b.classList.toggle('is-on', b.dataset.sort === mvUi.sort));
+    $$('#movies-view button').forEach(b => { const on = b.dataset.view === mvUi.view; b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+    $$('#movies-all-filter button').forEach(b => b.classList.toggle('is-on', b.dataset.f === mvUi.allFilter));
+    $('#movies-all-sort').value = mvUi.allSort;
     $('#movies-sort').hidden = queue.length < 2;
+    $('#movies-all-bar').hidden = !movies.length;
     $('#movies-refresh').hidden = !queue.length && !watching.length;
     $('#movies-pdf').disabled = !movies.length;
     const keys = mvHasTmdb();
     $('#movies-banner').hidden = keys;
     mvHydrate($('#movies'));
     if (typeof renderScanEngines === 'function') renderScanEngines();
+}
+
+// Меню действий у строки списка (в виде «Списком» кнопок на строке мало, остальное — здесь)
+function openMovieMenu(id) {
+    const m = mvById(id); if (!m) return;
+    const st = mvStatusOf(m), rows = [['info', 'info', 'О фильме']];
+    if (st !== 'watching') rows.push(['start', 'visibility', 'Смотрю сейчас']);
+    if (st !== 'watched') rows.push(['watch', 'done_all', 'Посмотрел' + '…']);
+    if (st !== 'queue') rows.push(['queue', 'bookmark', st === 'watched' ? 'Смотреть снова' : 'Вернуть в список']);
+    rows.push(['rate', m.myRating ? 'star' : 'star_border', m.myRating ? 'Моя оценка: ' + m.myRating + '/10' : 'Моя оценка']);
+    rows.push(['refresh', 'refresh', 'Обновить данные и оценки']);
+    rows.push(['edit', 'edit', 'Изменить']);
+    rows.push(['del', 'delete', 'Удалить']);
+    const html = '<p class="hint" style="margin:0 4px 8px">' + esc(m.title) + (m.year ? ' (' + m.year + ')' : '') + ' · ' + esc(MV_STATUS[st]) + '</p><div class="mv-menu">' +
+        rows.map(r => '<button type="button" class="mv-menu-row' + (r[0] === 'del' ? ' is-danger' : '') + '" data-m="' + r[0] + '">' + ic(r[1]) + '<span>' + esc(r[2]) + '</span></button>').join('') + '</div>';
+    const sheet = openSheet({ title: 'Фильм', html, actions: [{ label: 'Закрыть' }] });
+    sheet.el.addEventListener('click', e => {
+        const b = e.target.closest('[data-m]'); if (!b) return;
+        const act = b.dataset.m; sheet.close();
+        setTimeout(() => {
+            if (act === 'info') openMovieInfo(id); else if (act === 'rate') openRateSheet(id, false); else if (act === 'watch') openRateSheet(id, true);
+            else if (act === 'start') mvSetStatus(id, 'watching'); else if (act === 'queue') mvSetStatus(id, 'queue');
+            else if (act === 'refresh') mvRefreshOne(id); else if (act === 'edit') openMovieEdit(id); else if (act === 'del') mvDelete(id);
+        }, 200);
+    });
 }
 
 // ---------- Подробности и правка ----------
@@ -321,57 +380,7 @@ function openMovieEdit(id) {
     $('#me-dir', sheet.el).value = (m.directors || []).join(', '); $('#me-cast', sheet.el).value = (m.cast || []).join(', '); $('#me-note', sheet.el).value = m.note || '';
 }
 
-// ---------- Поиск фильма по названию ----------
-function mvResultRow(h, i) {
-    const dup = mvFindDup(h);
-    const cv = h.posterPath ? '<img class="cv" alt="" loading="lazy" referrerpolicy="no-referrer" src="' + esc(TMDB_IMG + 'w92' + h.posterPath) + '">' : '<span class="cv">' + ic(h.type === 'tv' ? 'tv' : 'movie') + '</span>';
-    const meta = [h.year || '', h.type === 'tv' ? 'сериал' : 'фильм', h.tmdb ? 'TMDB ' + String(h.tmdb).replace('.', ',') : ''].filter(Boolean).join(' · ');
-    return '<div class="mv-res" data-i="' + i + '">' + cv + '<div class="tx"><div class="nm">' + esc(h.title) + '</div><div class="sub">' + esc(meta) + '</div>' +
-        (h.origTitle && mvNorm(h.origTitle) !== mvNorm(h.title) ? '<div class="sub">' + esc(h.origTitle) + '</div>' : '') +
-        (h.overview ? '<div class="ov">' + esc(h.overview) + '</div>' : '') + '</div>' +
-        '<div class="acts">' + (dup ? '<span class="badge">Уже в списке: ' + esc(MV_STATUS[mvStatusOf(dup)]) + '</span>'
-            : '<button type="button" class="btn btn-primary" data-res-add="queue">' + ic('playlist_add') + 'В список</button><button type="button" class="btn" data-res-add="watching">' + ic('visibility') + 'Смотрю</button>') + '</div></div>';
-}
-function mvManualRow(q) { return '<div class="mv-res-foot"><button type="button" class="btn btn-text" data-res-manual>' + ic('add') + 'Добавить «' + esc(q.length > 40 ? q.slice(0, 40) + '…' : q) + '» как есть</button></div>'; }
-async function mvRunSearch(q) {
-    const seq = ++mvSearchSeq, box = $('#movie-results');
-    q = String(q || '').trim();
-    $('#movie-search-clear').hidden = !$('#movie-search').value;
-    if (q.length < 2) { box.hidden = true; box.innerHTML = ''; mvHits = []; return; }
-    box.hidden = false;
-    if (!mvHasTmdb()) {
-        box.innerHTML = '<div class="mv-res-state">' + ic('key') + '<span>Для поиска по базе фильмов нужен бесплатный ключ TMDB. Без него можно добавить название вручную.</span></div>' +
-            '<div class="mv-res-foot"><button type="button" class="btn" data-goto-settings>' + ic('settings') + 'Подключить TMDB</button></div>' + mvManualRow(q);
-        return;
-    }
-    box.innerHTML = '<div class="mv-res-state">' + ic('search') + '<span>Ищем «' + esc(q) + '»…</span></div>';
-    try {
-        const hits = (await tmdbSearch(q)).slice(0, 8);
-        if (seq !== mvSearchSeq) return;
-        mvHits = hits;
-        box.innerHTML = (hits.length ? hits.map(mvResultRow).join('') : '<div class="mv-res-state">' + ic('search') + '<span>В базе ничего не нашлось. Проверьте написание или попробуйте оригинальное название.</span></div>') + mvManualRow(q);
-    } catch (e) {
-        if (seq !== mvSearchSeq) return;
-        mvHits = [];
-        box.innerHTML = '<div class="mv-res-state is-error">' + ic('warning') + '<span>Поиск не удался: ' + esc(e.message) + '</span></div>' + mvManualRow(q);
-    }
-}
-function mvClearSearch(focus) {
-    const s = $('#movie-search'); s.value = ''; mvSearchSeq++; mvHits = [];
-    $('#movie-results').hidden = true; $('#movie-results').innerHTML = ''; $('#movie-search-clear').hidden = true;
-    if (focus) s.focus();
-}
-async function mvAddFromSearch(spec, status, src) {
-    if (src === 'manual') mvClearSearch(false);   // название добавлено как есть — поиск больше не нужен
-    try {
-        const r = await mvAddMovie(spec, status, { src });
-        if (r.dup) toast('«' + r.movie.title + '» уже в вашем списке'); else toast('«' + r.movie.title + '» — ' + (status === 'watching' ? 'смотрю сейчас' : 'в списке для просмотра') + (r.warn.length ? ' · ' + r.warn[0] : ''), { ms: r.warn.length ? 5200 : 3200 });
-    } catch (e) { toast('Не удалось добавить: ' + e.message); }
-    if (!$('#movie-results').hidden) {
-        const box = $('#movie-results'), q = $('#movie-search').value.trim();
-        if (mvHits.length) { box.innerHTML = mvHits.map(mvResultRow).join('') + mvManualRow(q); }
-    }
-}
+// ---------- Поиск фильма по названию: см. js/moviesearch.js (меню с результатами с нескольких площадок) ----------
 
 // ---------- Настройки → Кино (ключи: на устройстве и, по желанию, на вашем Google Диске) ----------
 function renderMoviesCard() {
@@ -428,29 +437,17 @@ function openMoviesSettings() {
 
 // ---------- Подключение событий ----------
 function initMovies() {
-    const si = $('#movie-search');
-    si.addEventListener('input', debounce(() => mvRunSearch(si.value), 480));
-    si.addEventListener('input', () => { $('#movie-search-clear').hidden = !si.value; });
-    si.addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); mvRunSearch(si.value); }
-        else if (e.key === 'Escape') mvClearSearch(false);
-    });
-    $('#movie-search-clear').addEventListener('click', () => mvClearSearch(true));
-    $('#movie-results').addEventListener('click', e => {
-        const add = e.target.closest('[data-res-add]'), man = e.target.closest('[data-res-manual]'), go = e.target.closest('[data-goto-settings]');
-        if (go) { openMoviesSettings(); return; }
-        if (add) { const row = add.closest('.mv-res'), h = mvHits[+row.dataset.i]; if (h) mvAddFromSearch(h, add.dataset.resAdd, 'search'); return; }
-        if (man) { const q = si.value.trim(); if (q) mvAddFromSearch({ title: q }, 'queue', 'manual'); }
-    });
+    initMovieSearch();
     $('#movies-banner').addEventListener('click', e => { if (e.target.closest('[data-goto-settings]')) openMoviesSettings(); });
 
-    // карточки: одна обработка кликов на всю страницу
+    // карточки и строки: одна обработка кликов на всю страницу
     $('#movies').addEventListener('click', e => {
         const b = e.target.closest('[data-mv]'); if (!b) return;
-        const card = b.closest('.movie'), id = card && card.dataset.id, act = b.dataset.mv;
+        const card = b.closest('.movie, .mv-row'), id = card && card.dataset.id, act = b.dataset.mv;
         if (act === 'more') { mvShown[b.dataset.list] = (mvShown[b.dataset.list] || 24) + 24; renderMovies(); return; }
         if (!id) return;
         if (act === 'info') openMovieInfo(id);
+        else if (act === 'menu') openMovieMenu(id);
         else if (act === 'rate') openRateSheet(id, false);
         else if (act === 'watch') openRateSheet(id, true);
         else if (act === 'start') mvSetStatus(id, 'watching');
@@ -462,6 +459,15 @@ function initMovies() {
         const b = e.target.closest('[data-sort]'); if (!b) return;
         mvUi.sort = b.dataset.sort; LS.set('movie_ui', mvUi); renderMovies();
     });
+    $('#movies-view').addEventListener('click', e => {
+        const b = e.target.closest('[data-view]'); if (!b) return;
+        mvUi.view = b.dataset.view === 'list' ? 'list' : 'cards'; LS.set('movie_ui', mvUi); renderMovies();
+    });
+    $('#movies-all-filter').addEventListener('click', e => {
+        const b = e.target.closest('[data-f]'); if (!b) return;
+        mvUi.allFilter = b.dataset.f; mvShown.all = 24; LS.set('movie_ui', mvUi); renderMovies();
+    });
+    $('#movies-all-sort').addEventListener('change', e => { mvUi.allSort = e.target.value; LS.set('movie_ui', mvUi); renderMovies(); });
     $('#movies-refresh').addEventListener('click', mvRefreshAll);
     $('#movies-pdf').addEventListener('click', openMoviesPdfSheet);
 

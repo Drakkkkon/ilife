@@ -105,6 +105,14 @@ async function tmdbSearch(query) {
     const j = await tmdbCall('/search/multi', { query: String(query).slice(0, 120), include_adult: 'false' });
     return ((j && j.results) || []).map(r => tmdbMapHit(r)).filter(Boolean);
 }
+// Фильм по IMDb-номеру (tt1234567): нужен, когда фильм выбран на другой площадке (IMDb, Кинопоиск, TVMaze), а не в TMDB
+async function tmdbFindByImdb(imdbId) {
+    const j = await tmdbCall('/find/' + encodeURIComponent(imdbId), { external_source: 'imdb_id' });
+    const mv = ((j && j.movie_results) || [])[0], tv = ((j && j.tv_results) || [])[0];
+    if (mv) return tmdbMapHit(mv, 'movie');
+    if (tv) return tmdbMapHit(tv, 'tv');
+    return null;
+}
 async function tmdbDetails(type, id) {
     const d = await tmdbCall('/' + type + '/' + id, { append_to_response: 'credits,external_ids' });
     const tv = type === 'tv', credits = d.credits || {}, crew = credits.crew || [];
@@ -147,7 +155,11 @@ async function kpRatings(m) {
     if (!key) throw mvErr('nokey', 'ключ ПоискКино не введён');
     const opts = { headers: { 'X-API-KEY': key, accept: 'application/json' } };
     let doc = null;
-    if (m.imdbId) {
+    if (m.kpId) {   // фильм выбран на Кинопоиске — берём его по номеру
+        try { const j = await mvFetch(KP_API + '/v1.5/movie/' + encodeURIComponent(m.kpId), opts); if (j && j.rating) doc = j; }
+        catch (e) { if (e.code === 401 || e.code === 403 || e.code === 429 || e.code === 'network') throw e; }
+    }
+    if (!doc && m.imdbId) {
         try { const j = await mvFetch(KP_API + '/v1.5/movie?limit=1&externalId.imdb=' + encodeURIComponent(m.imdbId), opts); doc = ((j && (j.docs || j.items)) || [])[0] || null; }
         catch (e) { if (e.code === 401 || e.code === 403 || e.code === 429 || e.code === 'network') throw e; }
     }
@@ -329,6 +341,9 @@ async function mvStorePoster(m, posterPath) {
 async function mvEnrich(m, o) {
     o = o || {}; const warn = [];
     m.ratings = m.ratings || {};
+    if (!m.tmdbId && mvHasTmdb() && m.imdbId) {   // выбран на IMDb / Кинопоиске / TVMaze: точное совпадение по IMDb-номеру
+        try { const f = await tmdbFindByImdb(m.imdbId); if (f) { m.tmdbId = f.tmdbId; m.type = f.type; } } catch (e) { warn.push('TMDB: ' + e.message); }
+    }
     if (!m.tmdbId && mvHasTmdb() && m.title) {
         try {
             const best = mvPickBest(m.title, await tmdbSearch(m.title), m.year, { min: 0.72 });
@@ -343,9 +358,14 @@ async function mvEnrich(m, o) {
         } catch (e) { warn.push('TMDB: ' + e.message); }
     }
     const jobs = [];
-    if (mvKey('omdb') && m.imdbId) jobs.push(omdbRatings(m.imdbId).then(r => { m.ratings = Object.assign({}, m.ratings, { imdb: r.imdb, rt: r.rt, mc: r.mc }); }, e => { warn.push('OMDb: ' + e.message); }));
-    if (mvKey('kp') && (m.title || m.imdbId)) jobs.push(kpRatings(m).then(r => { if (r) { m.kpId = r.kpId || m.kpId; m.ratings = Object.assign({}, m.ratings, { kp: r.kp }); if (!(m.ratings.imdb > 0) && r.kpImdb) m.ratings.imdb = r.kpImdb; } }, e => { warn.push('Кинопоиск: ' + e.message); }));
+    if (mvKey('omdb') && m.imdbId) jobs.push(omdbRatings(m.imdbId).then(r => { const p = {}; ['imdb', 'rt', 'mc'].forEach(k => { if (r[k] > 0) p[k] = r[k]; }); m.ratings = Object.assign({}, m.ratings, p); }, e => { warn.push('OMDb: ' + e.message); }));
+    if (mvKey('kp') && (m.title || m.imdbId)) jobs.push(kpRatings(m).then(r => { if (r) { m.kpId = r.kpId || m.kpId; if (r.kp > 0) m.ratings = Object.assign({}, m.ratings, { kp: r.kp }); if (!(m.ratings.imdb > 0) && r.kpImdb) m.ratings.imdb = r.kpImdb; } }, e => { warn.push('Кинопоиск: ' + e.message); }));
     await Promise.all(jobs);
+    // обложка с другой площадки (не TMDB): по возможности сохраняем саму картинку, иначе остаётся ссылка (нужен интернет)
+    if (!m.coverId && m.posterUrl && /^https?:/i.test(m.posterUrl)) {
+        const blob = await mvFetchBlob(m.posterUrl);
+        if (blob) { const id = uid('c'); try { await BlobDB.put({ id, blob, name: 'poster.jpg', type: blob.type, size: blob.size }); m.coverId = id; m.posterUrl = ''; } catch (e) { /* остаётся ссылка */ } }
+    }
     Object.keys(m.ratings || {}).forEach(k => { if (!(m.ratings[k] > 0)) delete m.ratings[k]; });
     m.ratingsAt = Date.now();
     return warn;

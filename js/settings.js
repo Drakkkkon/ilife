@@ -173,7 +173,7 @@ function initProfile() {
 
 // ---------- Данные: копия и восстановление ----------
 async function renderStorageInfo() {
-    let text = 'Идей: ' + ideas.length + ' · дел и покупок: ' + todos.length + ' · фильмов: ' + movies.length + (gallery.length ? ' · фото и GIF: ' + gallery.length : '') + (videos.length ? ' · видео: ' + videos.length : '') + (songs.length ? ' · песен: ' + songs.length : '') + (scripts.length ? ' · сценариев: ' + scripts.length : '');
+    let text = 'Идей: ' + ideas.length + ' · дел и покупок: ' + todos.length + ' · фильмов: ' + movies.length + (gallery.length ? ' · фото и GIF: ' + gallery.length : '') + (videos.length ? ' · видео: ' + videos.length : '') + (songs.length ? ' · песен: ' + songs.length : '') + (scripts.length ? ' · сценариев: ' + scripts.length : '') + (musicFavs.length ? ' · в избранной музыке: ' + musicFavs.length : '');
     try { if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); if (e && e.usage != null) text += ' · занято на устройстве: ' + fmtBytes(e.usage); } } catch (e) {}
     $('#data-info').textContent = text;
 }
@@ -183,7 +183,7 @@ async function backupData() {
         const media = [];
         const galIds = new Set(gallery.map(g => g.id).concat(videos.map(g => g.id), Array.from(gAllSongAudio())));   // фото, видео «Мое_совсек» и аудио песен в копию не входят: они большие и лежат на Google Диске
         for (const id of await BlobDB.ids()) { if (galIds.has(id)) continue; const rec = await BlobDB.get(id); if (rec) media.push({ id: rec.id, name: rec.name, type: rec.type, size: rec.size, data: await blobToBase64(rec.blob), thumb: rec.thumb ? await blobToBase64(rec.thumb) : null, thumbType: rec.thumb ? rec.thumb.type : null }); }
-        const data = { app: 'iLife', version: APP_VERSION, exportedAt: new Date().toISOString(), settings, ideas, todos, prices, movies, songs, scripts, media };
+        const data = { app: 'iLife', version: APP_VERSION, exportedAt: new Date().toISOString(), settings, ideas, todos, prices, movies, songs, scripts, musicfav: musicFavs, media };
         const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
         const name = stampName('копия', 'json');
         const res = await deliverFile(blob, name);
@@ -204,6 +204,7 @@ async function restoreData(file) {
         ideas = data.ideas; todos = data.todos || []; prices = data.prices || []; movies = Array.isArray(data.movies) ? data.movies : [];
         if (Array.isArray(data.songs)) { songs = data.songs; saveSongs(); }
         if (Array.isArray(data.scripts)) { scripts = data.scripts; saveScripts(); }
+        if (Array.isArray(data.musicfav)) { musicFavs = data.musicfav; saveMusicFavs(); if (typeof muFavChanged === 'function') muFavChanged(); }
         saveIdeas(); saveTodos(); saveMovies(); IX.clear();
         renderIdeas(); renderTodo(); renderMovies(); renderSongs(); renderScripts(); renderDraft(); renderStorageInfo();
         toast('Данные восстановлены из копии');
