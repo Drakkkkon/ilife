@@ -40,6 +40,19 @@ function goToChangelog() {
     }, 380);
 }
 
+// Раскрывает блок «Сайты и инструкции» и нужную инструкцию (по умолчанию и после перезапуска всё свёрнуто) и подводит к ней
+function flashEl(el) { el.classList.add('is-flash'); setTimeout(() => el.classList.remove('is-flash'), 1900); }
+function openInstruction(id) {
+    const d = document.getElementById(id), card = document.getElementById('links-card'); if (!d || !card) return;
+    card.classList.remove('is-collapsed'); d.open = true;
+    setTimeout(() => { d.scrollIntoView({ behavior: 'smooth', block: 'start' }); flashEl(d); }, 80);
+}
+function gotoCard(id) {
+    const c = document.getElementById(id); if (!c) return;
+    c.classList.remove('is-collapsed');
+    setTimeout(() => { c.scrollIntoView({ behavior: 'smooth', block: 'start' }); flashEl(c); }, 80);
+}
+
 function initNav() {
     $$('.sidebar-nav button, .mobile-nav button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
     $('#fab').addEventListener('click', () => {
@@ -55,6 +68,11 @@ function initNav() {
         const t = e.target.closest('.card-toggle'); if (!t) return;
         const card = t.closest('.card'); card.classList.toggle('is-collapsed');
         if (card.id) { card.classList.contains('is-collapsed') ? collapsedCards.add(card.id) : collapsedCards.delete(card.id); LS.set('collapsed', Array.from(collapsedCards)); }
+    });
+    // «Инструкция» в блоках ключей → нужная инструкция в блоке «Сайты и инструкции» внизу настроек; «К блоку» → обратно к блоку ключей
+    document.addEventListener('click', e => {
+        const i = e.target.closest('[data-instr]'), c = e.target.closest('[data-card]');
+        if (i) openInstruction(i.dataset.instr); else if (c) gotoCard(c.dataset.card);
     });
     // версия рядом с логотипом (главная, заставка, боковая панель) → журнал изменений
     document.addEventListener('click', e => { const v = e.target.closest('[data-goto-changelog]'); if (v) { e.preventDefault(); goToChangelog(); } });

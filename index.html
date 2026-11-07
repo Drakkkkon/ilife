@@ -41,7 +41,7 @@
             <!-- Логотип и версия: нажатие на версию открывает «Настройки → О приложении → Журнал изменений» -->
             <div class="splash-brand">
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.7.0</span><i data-i="chevron_right"></i></button>
+                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.7.1</span><i data-i="chevron_right"></i></button>
             </div>
             <h1 id="splash-greeting" style="font-size:24px;font-weight:400">Здравствуйте!</h1>
             <div class="splash-center">
@@ -64,7 +64,7 @@
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                 <div class="brand-txt">
                     <h2>iLife</h2>
-                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.7.0</span><i data-i="chevron_right"></i></button>
+                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.7.1</span><i data-i="chevron_right"></i></button>
                 </div>
             </div>
             <nav class="sidebar-nav">
@@ -88,7 +88,7 @@
                     <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                     <div class="brand-txt">
                         <b>iLife</b>
-                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.7.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
+                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.7.1</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
                     </div>
                 </div>
                 <!-- Поиск — в самом верху: по словам, #хештегам и датам -->
@@ -463,20 +463,7 @@
                             <div class="switch-row"><div class="tx"><b>Вложения тоже на Диск</b><span class="sub">Картинки, музыка, голосовые записи и файлы (до 50 МБ каждый). Без них на других устройствах будут только тексты</span></div><input type="checkbox" class="switch" id="google-media" aria-label="Синхронизировать вложения"></div>
                         </div>
 
-                        <details class="fold">
-                            <summary><i data-i="help"></i>Как подключить — пошагово</summary>
-                            <div class="fold-body">
-                                <ol class="steps">
-                                    <li>Откройте <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a> под своим аккаунтом Google. Вверху выберите проект (можно тот же, что у My Money) или создайте новый.</li>
-                                    <li><b>APIs &amp; Services → Library</b> → найдите <b>Google Drive API</b> → <b>Enable</b>.</li>
-                                    <li><b>Google Auth Platform</b> (или «OAuth consent screen»): тип <b>External</b>, статус <b>Testing</b>; в <b>Test users</b> добавьте свой Gmail. В <b>Data access</b> добавьте права <b>…/auth/drive.file</b>, <b>openid</b>, <b>email</b>, <b>profile</b>.</li>
-                                    <li><b>Clients → Create client</b> → тип <b>Web application</b>. В <b>Authorized JavaScript origins</b> нажмите <b>Add URI</b> и вставьте адрес из поля выше (только начало адреса: <code>https://ЛОГИН.github.io</code>, без названия репозитория и без слэша в конце). Если My Money уже на том же github.io, ничего добавлять не нужно. Redirect URI не нужен. <b>Create</b>.</li>
-                                    <li>Скопируйте <b>Client ID</b> (вида <code>123456789012-abc….apps.googleusercontent.com</code>) и вставьте в поле выше. Он не секретный. Чтобы он сразу был на всех устройствах, впишите его в файл <code>js/config.js</code> на GitHub (образец — <code>js/config.example.js</code>).</li>
-                                    <li>Нажмите <b>«Войти через Google»</b>. Google скажет «Приложение не проверено» — это нормально для личного приложения: <b>Дополнительно → Перейти</b> и отметьте доступ к Google Диску. Если окно не открылось — разрешите всплывающие окна для сайта.</li>
-                                </ol>
-                                <p class="hint">Приложение видит на Диске только свои файлы (доступ drive.file). Вход Google действует 1 час: потом нажмите «Продолжить синхронизацию» — изменения до этого сохраняются на устройстве и не теряются. Внутри APK-обёртки вход Google не работает — пользуйтесь Chrome или установите сайт на главный экран.</p>
-                            </div>
-                        </details>
+                        <p class="instr-row"><button type="button" class="linkbtn instr-link" data-instr="instr-google"><i data-i="help"></i>Инструкция: как подключить Google Диск</button></p>
                     </div>
                 </div>
 
@@ -495,21 +482,7 @@
                             <button type="button" class="btn btn-primary" id="sp-connect"><i data-i="login"></i>Подключить Spotify</button>
                             <button type="button" class="btn" id="sp-disconnect" hidden><i data-i="logout"></i>Отключить</button>
                         </div>
-                        <details class="fold">
-                            <summary><i data-i="help"></i>Как подключить — пошагово</summary>
-                            <div class="fold-body">
-                                <ol class="steps">
-                                    <li><b>Premium у владельца приложения.</b> С февраля 2026 Spotify разрешает приложения в режиме разработки только владельцам с подпиской Premium (и не более 5 пользователей на приложение). Для личного пользования этого достаточно: владелец — вы.</li>
-                                    <li>Откройте <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">developer.spotify.com/dashboard</a>, войдите своим аккаунтом Spotify и нажмите <b>Create app</b>.</li>
-                                    <li>Заполните: <b>App name</b> — iLife, <b>App description</b> — личные заметки. В поле <b>Redirect URI</b> вставьте адрес из поля выше (кнопка «копировать») и нажмите <b>Add</b>. Адрес должен совпадать до символа: <span class="code">https://</span>, имя сайта, <b>слэш в конце</b>. «localhost» Spotify не принимает; для проверки на компьютере используйте <span class="code">http://127.0.0.1:8080/</span>. В списке «Which API/SDKs» отметьте <b>Web API</b>, согласитесь с условиями и нажмите <b>Save</b>.</li>
-                                    <li>Откройте созданное приложение → <b>Settings</b> и скопируйте <b>Client ID</b>. Client Secret не нужен — никуда его не вставляйте.</li>
-                                    <li>В том же приложении откройте <b>User Management</b>: в режиме разработки войти могут только добавленные люди. Если вы слушаете музыку под тем же аккаунтом, под которым создали приложение, ничего делать не нужно; иначе добавьте имя и e-mail своего аккаунта Spotify.</li>
-                                    <li>Вернитесь сюда, вставьте Client ID и нажмите <b>«Подключить Spotify»</b>. Откроется страница Spotify — войдите и нажмите <b>Agree</b> (приложение получает только право читать, что играет и что вы недавно слушали). Вы вернётесь в iLife, статус станет «Подключён».</li>
-                                    <li><b>Как пользоваться.</b> На странице «Идеи» нажмите кнопку <b>Spotify</b>: «Взять то, что играет сейчас» подставит песню, исполнителя, альбом и обложку; ниже — недавно слушанное и поиск по Spotify. Трек сохранится в заметке вместе с обложкой.</li>
-                                </ol>
-                                <p class="hint">Токены хранятся только на этом устройстве, в браузере; отключить доступ можно кнопкой «Отключить» или на странице <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener noreferrer">spotify.com/account/apps</a>. Если приложение открыто внутри APK-обёртки, подключайтесь в Chrome: обёртка и браузер хранят токены отдельно.</p>
-                            </div>
-                        </details>
+                        <p class="instr-row"><button type="button" class="linkbtn instr-link" data-instr="instr-spotify"><i data-i="help"></i>Инструкция: как подключить Spotify</button></p>
                     </div>
                 </div>
 
@@ -526,19 +499,7 @@
                             <button type="button" class="btn" id="yt-show"><i data-i="visibility"></i>Показать ключ</button>
                         </div>
                         <div id="yt-test-out" class="mv-test-out" aria-live="polite"></div>
-                        <details class="fold">
-                            <summary><i data-i="help"></i>Где взять ключ — пошагово</summary>
-                            <div class="fold-body">
-                                <ol class="steps">
-                                    <li>Откройте <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a> под своим аккаунтом Google и выберите проект (можно тот же, что для Google Диска).</li>
-                                    <li><b>APIs &amp; Services → Library</b> → найдите <b>YouTube Data API v3</b> → <b>Enable</b>.</li>
-                                    <li><b>APIs &amp; Services → Credentials → Create credentials → API key</b>. Скопируйте ключ (он начинается с <code>AIza</code>).</li>
-                                    <li>Чтобы ключ не смог использовать кто-то другой, откройте его (<b>Edit API key</b>): в <b>Application restrictions</b> выберите <b>Websites</b> и добавьте адрес сайта вида <code>https://ВАШ-ЛОГИН.github.io/*</code> (с «/*» на конце); в <b>API restrictions</b> выберите <b>Restrict key</b> → <b>YouTube Data API v3</b> → <b>Save</b>. Ограничения вступают в силу через несколько минут.</li>
-                                    <li>Вставьте ключ в поле выше и нажмите <b>«Проверить ключ»</b>. Затем на странице «Идеи» нажмите <b>«YouTube»</b>: поиск по названию или исполнителю, режим «Музыка» или «Все видео», вставка ссылки и список недавно выбранных песен.</li>
-                                </ol>
-                                <p class="hint">Бесплатный лимит — 10 000 «единиц» в сутки; один поиск стоит 100, то есть около 100 поисков в день (вставка ссылки почти ничего не стоит). Ключ хранится на этом устройстве и, если включено «Ключи тоже на Диск», в вашем файле на Google Диске; в файл резервной копии он не попадает.</p>
-                            </div>
-                        </details>
+                        <p class="instr-row"><button type="button" class="linkbtn instr-link" data-instr="instr-youtube"><i data-i="help"></i>Инструкция: где взять ключ YouTube</button></p>
                     </div>
                 </div>
 
@@ -561,21 +522,8 @@
                             <button type="button" class="btn" id="tgc-show"><i data-i="visibility"></i>Показать токен</button>
                         </div>
                         <div id="tgc-out" class="mv-test-out" aria-live="polite"></div>
-                        <details class="fold">
-                            <summary><i data-i="help"></i>Как подключить — пошагово</summary>
-                            <div class="fold-body">
-                                <ol class="steps">
-                                    <li><b>Бот.</b> В Telegram откройте <b>@BotFather</b> → <code>/newbot</code> → имя и логин (оканчивается на <code>bot</code>). BotFather пришлёт токен вида <code>123456789:AA…</code> — вставьте его в поле выше.</li>
-                                    <li><b>Канал.</b> Создайте канал (удобно — закрытый, только для идей) или возьмите свой. <b>Управление каналом → Администраторы → Добавить администратора</b> → найдите своего бота и сохраните: без этого бот не видит посты канала.</li>
-                                    <li>Опубликуйте в канале любой пост и нажмите <b>«Проверить бота и канал»</b>: приложение покажет найденные каналы и их номера. У открытого канала впишите <code>@имя</code>, у закрытого — номер вида <code>-1001234567890</code>. Поле можно оставить пустым — тогда берутся все каналы, где бот администратор.</li>
-                                    <li>На странице «Идеи» нажмите <b>«Забрать из канала»</b>. Бот отдаёт то, что опубликовано за последние 24 часа, и дальше — всё новое. Приложение покажет список будущих идей: уберите лишнее и нажмите «Добавить». Вложения (фото, голосовые, файлы) прикрепляются к идее.</li>
-                                    <li><b>Старые посты — через экспорт.</b> Telegram Desktop → откройте канал → ⋮ → <b>«Экспорт истории чата»</b> → отметьте фото (и файлы) → формат <b>JSON</b> (лучше) или HTML → «Экспортировать». Папку заархивируйте в ZIP и на странице «Идеи» нажмите <b>«Выбрать экспорт»</b>. Можно выбрать и один файл <code>result.json</code> (тогда будут только тексты).</li>
-                                    <li><b>ИИ</b> (по желанию) берётся из блока «Кино: базы и оценки» ниже — Gemini или Claude. Он получает только тексты постов (картинки не отправляются) и предлагает хештеги, даты событий и разбивку списков на отдельные идеи. Без ИИ каждая запись или альбом становится одной идеей с хештегами из самого поста.</li>
-                                </ol>
-                                <p class="hint">Токен хранится на этом устройстве и, если включено «Ключи тоже на Диск», в вашем файле на Google Диске; в файл резервной копии он не попадает. Бот читает только каналы, куда вы его добавили, и ничего не публикует. Один и тот же пост не добавится дважды; удалённые вами идеи обратно не возвращаются.</p>
-                                <div class="btn-group" style="margin-top:0.5rem"><button type="button" class="btn btn-danger" id="tgc-reset"><i data-i="delete"></i>Сбросить очередь и историю импорта</button></div>
-                            </div>
-                        </details>
+                        <p class="instr-row"><button type="button" class="linkbtn instr-link" data-instr="instr-telegram"><i data-i="help"></i>Инструкция: как подключить Telegram-канал</button></p>
+                        <div class="btn-group" style="margin-top:0.5rem"><button type="button" class="btn btn-danger" id="tgc-reset"><i data-i="delete"></i>Сбросить очередь и историю импорта</button></div>
                     </div>
                 </div>
 
@@ -616,20 +564,7 @@
                         </div>
                         <div id="mvc-test-out" class="mv-test-out" aria-live="polite"></div>
 
-                        <details class="fold">
-                            <summary><i data-i="help"></i>Где взять ключи — пошагово</summary>
-                            <div class="fold-body">
-                                <ol class="steps">
-                                    <li><b>TMDB (бесплатно, для личного пользования).</b> Зарегистрируйтесь на <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">themoviedb.org</a>, откройте <b>Settings → API</b> (<a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">прямая ссылка</a>) и нажмите <b>Create</b>. Тип — <b>Developer</b>, назначение — личное некоммерческое (название — iLife, описание — «личный список фильмов»). Скопируйте <b>API Key</b> (32 символа) или длинный <b>API Read Access Token</b> — подойдёт любой — и вставьте в поле выше.</li>
-                                    <li><b>OMDb (бесплатно, 1000 запросов в сутки).</b> Откройте <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener noreferrer">omdbapi.com/apikey.aspx</a>, выберите <b>FREE</b>, укажите e-mail. На почту придёт письмо: <b>обязательно нажмите в нём ссылку активации</b> — без этого ключ не работает. Ключ из письма вставьте в поле.</li>
-                                    <li><b>ПоискКино (бесплатно, 200 запросов в сутки).</b> В Telegram откройте бота <b>@poiskkinodev_bot</b> и получите ключ (сайт сервиса — <a href="https://poiskkino.dev" target="_blank" rel="noopener noreferrer">poiskkino.dev</a>). Вставьте в поле. Это даёт оценку Кинопоиска; без него она просто не показывается.</li>
-                                    <li><b>ИИ — по желанию.</b> Нужен, только если на скриншоте нет названия (кадр из фильма, афиша с рисованными буквами). Ключ Gemini: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a> (есть бесплатный лимит). Ключ Claude: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a> (платно, копейки за снимок). Если сервис переименует модель и появится ошибка «модель не найдена», впишите актуальное название в поле «Название модели».</li>
-                                    <li>Нажмите <b>«Проверить подключение»</b>: напротив каждого сервиса появится «работает» или причина ошибки. После этого на странице «Кино» поиск, обложки, оценки и распознавание заработают.</li>
-                                </ol>
-                                <p class="hint">Приложение ходит в эти сервисы напрямую из вашего браузера, без своего сервера. Распознавание текста на скриншоте (Tesseract) идёт на устройстве: при первом запуске скачивается модуль и словари, около 15 МБ, дальше берутся из кеша браузера. Подключённый ИИ получает только те картинки, которые вы отправили на распознавание.</p>
-                                <p class="hint" style="margin-top:0.5rem">Данные о фильмах предоставлены TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Рейтинги IMDb, Rotten Tomatoes и Metacritic — через OMDb, Кинопоиска — через ПоискКино.</p>
-                            </div>
-                        </details>
+                        <p class="instr-row"><button type="button" class="linkbtn instr-link" data-instr="instr-movies"><i data-i="help"></i>Инструкция: где взять ключи для «Кино»</button></p>
                     </div>
                 </div>
 
@@ -697,13 +632,20 @@
                     <div class="card-body">
                         <div class="about-head">
                             <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">1.7.0</span></div></div>
+                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">1.7.1</span></div></div>
                         </div>
                         <p style="margin-bottom:8px">Личное приложение для себя. Дизайн и логика — из My Money 4.8.1.</p>
                         <p class="hint" style="margin-bottom:16px"><b>Не для коммерческого использования:</b> приложение создано только для личных, некоммерческих целей — его нельзя продавать, сдавать в аренду или использовать в бизнесе. Логотип (папка «iLife ’09») — сторонняя картинка, права на неё принадлежат её владельцам; он используется здесь только в личных целях.</p>
 
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
+                        <div class="cl-version">
+                            <h4>1.7.1 <span class="cl-tag">Сайты и инструкции</span></h4>
+                            <ul>
+                                <li>«Настройки»: в самом низу новый свёрнутый блок «Сайты и инструкции»: ссылки на все сайты для ключей (кино, музыка, Google, Telegram) и на GitHub, а под ними все пошаговые инструкции (каждая тоже свёрнута).</li>
+                                <li>В блоках «Google Диск», «Spotify», «YouTube», «Telegram-канал» и «Кино: базы и оценки» вместо длинных инструкций осталась одна ссылка «Инструкция»: она раскрывает нужную инструкцию внизу, а кнопка «К блоку» возвращает обратно.</li>
+                            </ul>
+                        </div>
                         <div class="cl-version">
                             <h4>1.7.0 <span class="cl-tag">Сценарии · песни-контейнеры · предзагрузка фото</span></h4>
                             <ul>
@@ -797,6 +739,127 @@
                             </ul>
                         </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- ===================== САЙТЫ И ИНСТРУКЦИИ: всегда последний блок «Настроек» и всегда свёрнут =====================
+                     ПРАВИЛО: новые сайты (где берутся ключи и т. п.) добавляются в списки ссылок ниже, а пошаговые инструкции — как новый
+                     <details class="fold" id="instr-…"> в конце блока «Инструкции» (всегда без атрибута open). В самом блоке ключей остаётся
+                     только строка <p class="instr-row"> со ссылкой <button class="linkbtn instr-link" data-instr="instr-…"> (js/app.js её раскрывает). -->
+                <div class="card is-collapsed" id="links-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="link"></i></span><span class="ttl">Сайты и инструкции</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <p class="hint" style="margin-bottom:0.75rem">Все сайты, которые нужны для ключей и подключений, и пошаговые инструкции. Из блоков с ключами сюда ведёт ссылка «Инструкция».</p>
+                        <div class="lk-groups">
+                            <section class="lk-group"><h4><i data-i="movie"></i>Кино</h4><ul class="lk-list">
+                                <li><a class="lk-a" href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>TMDB — регистрация</b><small>themoviedb.org/signup</small></span></a></li>
+                                <li><a class="lk-a" href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>TMDB — ключ API</b><small>Settings → API</small></span></a></li>
+                                <li><a class="lk-a" href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>OMDb — ключ</b><small>omdbapi.com/apikey.aspx (оценки IMDb, Rotten Tomatoes, Metacritic)</small></span></a></li>
+                                <li><a class="lk-a" href="https://poiskkino.dev" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>ПоискКино — сайт сервиса</b><small>poiskkino.dev (оценка Кинопоиска)</small></span></a></li>
+                                <li><a class="lk-a" href="https://t.me/poiskkinodev_bot" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>ПоискКино — бот за ключом</b><small>@poiskkinodev_bot в Telegram</small></span></a></li>
+                                <li><a class="lk-a" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Gemini — ключ ИИ</b><small>aistudio.google.com/apikey</small></span></a></li>
+                                <li><a class="lk-a" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Claude — ключ ИИ</b><small>console.anthropic.com/settings/keys</small></span></a></li>
+                            </ul></section>
+                            <section class="lk-group"><h4><i data-i="headphones"></i>Музыка</h4><ul class="lk-list">
+                                <li><a class="lk-a" href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Spotify for Developers</b><small>developer.spotify.com/dashboard — создать приложение, Client ID</small></span></a></li>
+                                <li><a class="lk-a" href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Spotify — доступ приложений</b><small>spotify.com/account/apps — отключить iLife</small></span></a></li>
+                                <li><a class="lk-a" href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>YouTube Data API v3</b><small>включить API в Google Cloud</small></span></a></li>
+                                <li><a class="lk-a" href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Google Cloud — ключи (Credentials)</b><small>создать и ограничить ключ API</small></span></a></li>
+                            </ul></section>
+                            <section class="lk-group"><h4><i data-i="add_to_drive"></i>Google</h4><ul class="lk-list">
+                                <li><a class="lk-a" href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Google Cloud Console</b><small>console.cloud.google.com — проект</small></span></a></li>
+                                <li><a class="lk-a" href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Google Drive API</b><small>включить API (синхронизация)</small></span></a></li>
+                                <li><a class="lk-a" href="https://console.cloud.google.com/auth/overview" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Google Auth Platform</b><small>экран согласия, Test users, Clients → Client ID</small></span></a></li>
+                                <li><a class="lk-a" href="https://drive.google.com" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Google Диск</b><small>папка iLife с вашими данными</small></span></a></li>
+                                <li><a class="lk-a" href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Доступ приложений к аккаунту</b><small>myaccount.google.com — отозвать доступ</small></span></a></li>
+                            </ul></section>
+                            <section class="lk-group"><h4><i data-i="send"></i>Telegram</h4><ul class="lk-list">
+                                <li><a class="lk-a" href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>@BotFather</b><small>создать бота и получить токен</small></span></a></li>
+                                <li><a class="lk-a" href="https://desktop.telegram.org" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Telegram Desktop</b><small>нужен для «Экспорт истории чата»</small></span></a></li>
+                            </ul></section>
+                            <section class="lk-group"><h4><i data-i="link"></i>GitHub</h4><ul class="lk-list">
+                                <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Репозиторий iLife</b><small>github.com/Drakkkkon/ilife</small></span></a></li>
+                                <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife/upload/main" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Загрузить файлы новой версии</b><small>Add file → Upload files</small></span></a></li>
+                                <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife/settings/pages" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>GitHub Pages</b><small>настройки сайта</small></span></a></li>
+                            </ul></section>
+                        </div>
+                        <h4 class="lk-h"><i data-i="help"></i>Инструкции</h4>
+                        <details class="fold" id="instr-google">
+                            <summary><i data-i="help"></i>Google Диск: как подключить — пошагово</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-card="google-card"><i data-i="arrow_upward"></i>К блоку «Google Диск»</button></p>
+                                <ol class="steps">
+                                    <li>Откройте <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a> под своим аккаунтом Google. Вверху выберите проект (можно тот же, что у My Money) или создайте новый.</li>
+                                    <li><b>APIs &amp; Services → Library</b> → найдите <b>Google Drive API</b> → <b>Enable</b>.</li>
+                                    <li><b>Google Auth Platform</b> (или «OAuth consent screen»): тип <b>External</b>, статус <b>Testing</b>; в <b>Test users</b> добавьте свой Gmail. В <b>Data access</b> добавьте права <b>…/auth/drive.file</b>, <b>openid</b>, <b>email</b>, <b>profile</b>.</li>
+                                    <li><b>Clients → Create client</b> → тип <b>Web application</b>. В <b>Authorized JavaScript origins</b> нажмите <b>Add URI</b> и вставьте адрес из поля «Адрес сайта» в блоке «Google Диск» (только начало адреса: <code>https://ЛОГИН.github.io</code>, без названия репозитория и без слэша в конце). Если My Money уже на том же github.io, ничего добавлять не нужно. Redirect URI не нужен. <b>Create</b>.</li>
+                                    <li>Скопируйте <b>Client ID</b> (вида <code>123456789012-abc….apps.googleusercontent.com</code>) и вставьте в поле «Client ID» блока «Google Диск». Он не секретный. Чтобы он сразу был на всех устройствах, впишите его в файл <code>js/config.js</code> на GitHub (образец — <code>js/config.example.js</code>).</li>
+                                    <li>Нажмите <b>«Войти через Google»</b>. Google скажет «Приложение не проверено» — это нормально для личного приложения: <b>Дополнительно → Перейти</b> и отметьте доступ к Google Диску. Если окно не открылось — разрешите всплывающие окна для сайта.</li>
+                                </ol>
+                                <p class="hint">Приложение видит на Диске только свои файлы (доступ drive.file). Вход Google действует 1 час: потом нажмите «Продолжить синхронизацию» — изменения до этого сохраняются на устройстве и не теряются. Внутри APK-обёртки вход Google не работает — пользуйтесь Chrome или установите сайт на главный экран.</p>
+                            </div>
+                        </details>
+                        <details class="fold" id="instr-spotify">
+                            <summary><i data-i="help"></i>Spotify: как подключить — пошагово</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-card="spotify-card"><i data-i="arrow_upward"></i>К блоку «Spotify»</button></p>
+                                <ol class="steps">
+                                    <li><b>Premium у владельца приложения.</b> С февраля 2026 Spotify разрешает приложения в режиме разработки только владельцам с подпиской Premium (и не более 5 пользователей на приложение). Для личного пользования этого достаточно: владелец — вы.</li>
+                                    <li>Откройте <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">developer.spotify.com/dashboard</a>, войдите своим аккаунтом Spotify и нажмите <b>Create app</b>.</li>
+                                    <li>Заполните: <b>App name</b> — iLife, <b>App description</b> — личные заметки. В поле <b>Redirect URI</b> вставьте адрес из поля «Redirect URI» в блоке «Spotify» (кнопка «копировать») и нажмите <b>Add</b>. Адрес должен совпадать до символа: <span class="code">https://</span>, имя сайта, <b>слэш в конце</b>. «localhost» Spotify не принимает; для проверки на компьютере используйте <span class="code">http://127.0.0.1:8080/</span>. В списке «Which API/SDKs» отметьте <b>Web API</b>, согласитесь с условиями и нажмите <b>Save</b>.</li>
+                                    <li>Откройте созданное приложение → <b>Settings</b> и скопируйте <b>Client ID</b>. Client Secret не нужен — никуда его не вставляйте.</li>
+                                    <li>В том же приложении откройте <b>User Management</b>: в режиме разработки войти могут только добавленные люди. Если вы слушаете музыку под тем же аккаунтом, под которым создали приложение, ничего делать не нужно; иначе добавьте имя и e-mail своего аккаунта Spotify.</li>
+                                    <li>Вернитесь в блок «Spotify», вставьте Client ID и нажмите <b>«Подключить Spotify»</b>. Откроется страница Spotify — войдите и нажмите <b>Agree</b> (приложение получает только право читать, что играет и что вы недавно слушали). Вы вернётесь в iLife, статус станет «Подключён».</li>
+                                    <li><b>Как пользоваться.</b> На странице «Идеи» нажмите кнопку <b>Spotify</b>: «Взять то, что играет сейчас» подставит песню, исполнителя, альбом и обложку; ниже — недавно слушанное и поиск по Spotify. Трек сохранится в заметке вместе с обложкой.</li>
+                                </ol>
+                                <p class="hint">Токены хранятся только на этом устройстве, в браузере; отключить доступ можно кнопкой «Отключить» или на странице <a href="https://www.spotify.com/account/apps/" target="_blank" rel="noopener noreferrer">spotify.com/account/apps</a>. Если приложение открыто внутри APK-обёртки, подключайтесь в Chrome: обёртка и браузер хранят токены отдельно.</p>
+                            </div>
+                        </details>
+                        <details class="fold" id="instr-youtube">
+                            <summary><i data-i="help"></i>YouTube: где взять ключ — пошагово</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-card="yt-card"><i data-i="arrow_upward"></i>К блоку «YouTube»</button></p>
+                                <ol class="steps">
+                                    <li>Откройте <a href="https://console.cloud.google.com" target="_blank" rel="noopener noreferrer">console.cloud.google.com</a> под своим аккаунтом Google и выберите проект (можно тот же, что для Google Диска).</li>
+                                    <li><b>APIs &amp; Services → Library</b> → найдите <b>YouTube Data API v3</b> → <b>Enable</b>.</li>
+                                    <li><b>APIs &amp; Services → Credentials → Create credentials → API key</b>. Скопируйте ключ (он начинается с <code>AIza</code>).</li>
+                                    <li>Чтобы ключ не смог использовать кто-то другой, откройте его (<b>Edit API key</b>): в <b>Application restrictions</b> выберите <b>Websites</b> и добавьте адрес сайта вида <code>https://ВАШ-ЛОГИН.github.io/*</code> (с «/*» на конце); в <b>API restrictions</b> выберите <b>Restrict key</b> → <b>YouTube Data API v3</b> → <b>Save</b>. Ограничения вступают в силу через несколько минут.</li>
+                                    <li>Вставьте ключ в блок «YouTube» и нажмите <b>«Проверить ключ»</b>. Затем на странице «Идеи» нажмите <b>«YouTube»</b>: поиск по названию или исполнителю, режим «Музыка» или «Все видео», вставка ссылки и список недавно выбранных песен.</li>
+                                </ol>
+                                <p class="hint">Бесплатный лимит — 10 000 «единиц» в сутки; один поиск стоит 100, то есть около 100 поисков в день (вставка ссылки почти ничего не стоит). Ключ хранится на этом устройстве и, если включено «Ключи тоже на Диск», в вашем файле на Google Диске; в файл резервной копии он не попадает.</p>
+                            </div>
+                        </details>
+                        <details class="fold" id="instr-telegram">
+                            <summary><i data-i="help"></i>Telegram-канал: как подключить — пошагово</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-card="tg-cfg-card"><i data-i="arrow_upward"></i>К блоку «Telegram-канал»</button></p>
+                                <ol class="steps">
+                                    <li><b>Бот.</b> В Telegram откройте <b>@BotFather</b> → <code>/newbot</code> → имя и логин (оканчивается на <code>bot</code>). BotFather пришлёт токен вида <code>123456789:AA…</code> — вставьте его в поле «Токен бота» блока «Telegram-канал».</li>
+                                    <li><b>Канал.</b> Создайте канал (удобно — закрытый, только для идей) или возьмите свой. <b>Управление каналом → Администраторы → Добавить администратора</b> → найдите своего бота и сохраните: без этого бот не видит посты канала.</li>
+                                    <li>Опубликуйте в канале любой пост и нажмите <b>«Проверить бота и канал»</b>: приложение покажет найденные каналы и их номера. У открытого канала впишите <code>@имя</code>, у закрытого — номер вида <code>-1001234567890</code>. Поле можно оставить пустым — тогда берутся все каналы, где бот администратор.</li>
+                                    <li>На странице «Идеи» нажмите <b>«Забрать из канала»</b>. Бот отдаёт то, что опубликовано за последние 24 часа, и дальше — всё новое. Приложение покажет список будущих идей: уберите лишнее и нажмите «Добавить». Вложения (фото, голосовые, файлы) прикрепляются к идее.</li>
+                                    <li><b>Старые посты — через экспорт.</b> Telegram Desktop → откройте канал → ⋮ → <b>«Экспорт истории чата»</b> → отметьте фото (и файлы) → формат <b>JSON</b> (лучше) или HTML → «Экспортировать». Папку заархивируйте в ZIP и на странице «Идеи» нажмите <b>«Выбрать экспорт»</b>. Можно выбрать и один файл <code>result.json</code> (тогда будут только тексты).</li>
+                                    <li><b>ИИ</b> (по желанию) берётся из блока «Кино: базы и оценки» — Gemini или Claude. Он получает только тексты постов (картинки не отправляются) и предлагает хештеги, даты событий и разбивку списков на отдельные идеи. Без ИИ каждая запись или альбом становится одной идеей с хештегами из самого поста.</li>
+                                </ol>
+                                <p class="hint">Токен хранится на этом устройстве и, если включено «Ключи тоже на Диск», в вашем файле на Google Диске; в файл резервной копии он не попадает. Бот читает только каналы, куда вы его добавили, и ничего не публикует. Один и тот же пост не добавится дважды; удалённые вами идеи обратно не возвращаются.</p>
+                            </div>
+                        </details>
+                        <details class="fold" id="instr-movies">
+                            <summary><i data-i="help"></i>Кино: где взять ключи — пошагово</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-card="movies-cfg-card"><i data-i="arrow_upward"></i>К блоку «Кино: базы и оценки»</button></p>
+                                <ol class="steps">
+                                    <li><b>TMDB (бесплатно, для личного пользования).</b> Зарегистрируйтесь на <a href="https://www.themoviedb.org/signup" target="_blank" rel="noopener noreferrer">themoviedb.org</a>, откройте <b>Settings → API</b> (<a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer">прямая ссылка</a>) и нажмите <b>Create</b>. Тип — <b>Developer</b>, назначение — личное некоммерческое (название — iLife, описание — «личный список фильмов»). Скопируйте <b>API Key</b> (32 символа) или длинный <b>API Read Access Token</b> — подойдёт любой — и вставьте в блок «Кино: базы и оценки».</li>
+                                    <li><b>OMDb (бесплатно, 1000 запросов в сутки).</b> Откройте <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener noreferrer">omdbapi.com/apikey.aspx</a>, выберите <b>FREE</b>, укажите e-mail. На почту придёт письмо: <b>обязательно нажмите в нём ссылку активации</b> — без этого ключ не работает. Ключ из письма вставьте в поле.</li>
+                                    <li><b>ПоискКино (бесплатно, 200 запросов в сутки).</b> В Telegram откройте бота <b>@poiskkinodev_bot</b> и получите ключ (сайт сервиса — <a href="https://poiskkino.dev" target="_blank" rel="noopener noreferrer">poiskkino.dev</a>). Вставьте в поле. Это даёт оценку Кинопоиска; без него она просто не показывается.</li>
+                                    <li><b>ИИ — по желанию.</b> Нужен, только если на скриншоте нет названия (кадр из фильма, афиша с рисованными буквами). Ключ Gemini: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com/apikey</a> (есть бесплатный лимит). Ключ Claude: <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a> (платно, копейки за снимок). Если сервис переименует модель и появится ошибка «модель не найдена», впишите актуальное название в поле «Название модели».</li>
+                                    <li>Нажмите <b>«Проверить подключение»</b>: напротив каждого сервиса появится «работает» или причина ошибки. После этого на странице «Кино» поиск, обложки, оценки и распознавание заработают.</li>
+                                </ol>
+                                <p class="hint">Приложение ходит в эти сервисы напрямую из вашего браузера, без своего сервера. Распознавание текста на скриншоте (Tesseract) идёт на устройстве: при первом запуске скачивается модуль и словари, около 15 МБ, дальше берутся из кеша браузера. Подключённый ИИ получает только те картинки, которые вы отправили на распознавание.</p>
+                                <p class="hint" style="margin-top:0.5rem">Данные о фильмах предоставлены TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Рейтинги IMDb, Rotten Tomatoes и Metacritic — через OMDb, Кинопоиска — через ПоискКино.</p>
+                            </div>
+                        </details>
                     </div>
                 </div>
             </section>
