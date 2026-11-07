@@ -255,6 +255,7 @@ function createGalSection(cfg) {
         try { local = await BlobDB.index(); } catch (e) { local = new Map(); }
         paintCloud(); renderCardLine();
     }
+    const paintLineSoon = debounce(() => { try { renderCardLine(); } catch (e) {} }, 400);
     function paintCloud() {
         if (!local) return;
         $$(S('body') + ' .gal-th[data-id], .gal-viewer .gal-th[data-id]').forEach(el => el.classList.toggle('is-cloud', !(local.get(el.dataset.id) || {}).full));
@@ -914,6 +915,7 @@ function createGalSection(cfg) {
     function closeViewer() {
         if (!viewer) return;
         document.removeEventListener('keydown', viewer.key);
+        if (viewer.stop) viewer.stop();   // предзагрузка соседних фото живёт только пока открыт просмотр
         const v = viewer.el.querySelector('video'); if (v) { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {} }
         viewer.el.remove(); viewer = null;
         if (!sheetStack.length) document.body.classList.remove('is-locked');
@@ -926,7 +928,7 @@ function createGalSection(cfg) {
         el.className = 'lightbox gal-viewer'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', isVideo ? 'Просмотр видео' : 'Просмотр фото');
         el.innerHTML = (isVideo ? '<video controls playsinline preload="metadata" hidden></video><img class="gal-poster" alt="" hidden>' : '<img alt="">') +
             '<div class="gal-vmiss" hidden>' + ic('cloud_download') + '<span data-m>Оригинала нет на устройстве.</span><button type="button" class="btn btn-primary" data-v="fetch">' + ic('cloud_download') + '<span>Загрузить с Google Диска</span></button></div>' +
-            '<div class="gal-vtop"><span class="gal-vcount"></span><span class="gal-sp"></span>' +
+            '<div class="gal-vtop"><span class="gal-vcount"></span><span class="gal-vpf" hidden title="Подгружаем соседние фото с Google Диска">' + ic('cloud_download') + '<b></b></span><span class="gal-sp"></span>' +
             '<button type="button" class="lb-btn" data-v="save" aria-label="Сохранить" title="Сохранить">' + ic('download') + '</button>' +
             '<button type="button" class="lb-btn" data-v="edit" aria-label="Хештеги и актёры" title="Хештеги и актёры">' + ic('tag') + '</button>' +
             '<button type="button" class="lb-btn" data-v="del" aria-label="Удалить" title="Удалить">' + ic('delete') + '</button>' +
@@ -935,6 +937,55 @@ function createGalSection(cfg) {
             '<div class="gal-vinfo"></div>';
         document.body.appendChild(el); document.body.classList.add('is-locked');
         const media = isVideo ? $('video', el) : $('img', el), poster = $('.gal-poster', el), miss = $('.gal-vmiss', el), msg = $('[data-m]', miss), fetchBtn = $('[data-v="fetch"]', el);
+        const pfBadge = $('.gal-vpf', el), pfNum = $('b', pfBadge);
+
+        // ---- Динамическая подгрузка соседних фото (только пока открыт просмотр) ----
+        // Когда вы открываете фото, которого нет на устройстве, приложение качает с Google Диска его самого и сразу несколько соседних
+        // (по ходу листания — больше вперёд), чтобы следующие снимки открывались мгновенно. Как только просмотр закрыт, всё останавливается;
+        // в обычных списках и при синхронизации ничего лишнего не качается.
+        const PF = { ahead: 4, behind: 2, parallel: 3, maxBytes: 25 * 1048576 };
+        const pfAbort = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const jobs = new Map();   // id → { frac, subs, p }: что качается прямо сейчас
+        let queue = [], running = 0, dir = 1, stopped = false;
+        const pfAllowed = () => !isVideo && !stopped && navigator.onLine !== false && !(navigator.connection && navigator.connection.saveData);
+        const pfReady = () => !stopped && cloudReady() && googleInfo().hasToken;
+        const pfPaint = () => { const n = running + queue.length; pfBadge.hidden = !n; pfNum.textContent = String(n); };
+        const markLocal = id => {
+            if (!local) local = new Map();
+            local.set(id, Object.assign({}, local.get(id), { full: true }));
+            paintCloud(); paintLineSoon();
+        };
+        function startJob(g, fresh) {
+            let job = jobs.get(g.id); if (job) return job;
+            job = { frac: 0, subs: new Set() };
+            job.p = gGalFetchOne(K, g.id, { fresh: !!fresh, refreshOnMiss: true, ttl: 600000, signal: pfAbort ? pfAbort.signal : undefined, onFrac: f => { job.frac = f; job.subs.forEach(fn => fn(f)); } })
+                .catch(e => (e && e.code === 'auth') ? 'auth' : 'failed')
+                .then(r => { jobs.delete(g.id); if (r === 'done') markLocal(g.id); return r; });
+            jobs.set(g.id, job);
+            return job;
+        }
+        function pump() {
+            while (running < PF.parallel && queue.length && pfAllowed() && pfReady()) {
+                const id = queue.shift(), g = list.find(x => x.id === id);
+                if (!g || hasFull(id) || jobs.has(id)) continue;
+                running++;
+                startJob(g, false).p.then(r => { running--; if (r === 'auth' || r === 'aborted') queue = []; pump(); pfPaint(); });
+            }
+            pfPaint();
+        }
+        // порядок: ближайшие первыми; в сторону листания берём дальше
+        function plan() {
+            if (!pfAllowed() || list.length < 2) { queue = []; pfPaint(); return; }
+            const n = list.length, fw = dir >= 0 ? PF.ahead : PF.behind, bw = dir >= 0 ? PF.behind : PF.ahead, ids = [];
+            for (let d = 1; d <= Math.max(fw, bw); d++) {
+                if (d <= fw) ids.push(list[(i + dir * d + n * 8) % n].id);
+                if (d <= bw) ids.push(list[(i - dir * d + n * 8) % n].id);
+            }
+            queue = galUniq(ids).filter(id => { const g = list.find(x => x.id === id); return g && g.id !== list[i].id && !hasFull(id) && !jobs.has(id) && (Number(g.size) || 0) <= PF.maxBytes; });
+            pump();
+        }
+        const planSoon = async () => { if (!local) await refreshLocal(); plan(); };
+
         const show = async () => {
             const g = list[i], my = ++token;
             $('.gal-vcount', el).textContent = (i + 1) + ' / ' + list.length;
@@ -943,38 +994,48 @@ function createGalSection(cfg) {
             miss.hidden = true;
             const u = await BlobDB.url(g.id);
             if (token !== my) return;
-            if (u) { media.hidden = false; media.src = u; if (isVideo) { try { media.play(); } catch (e) {} } return; }
+            if (u) { media.hidden = false; media.src = u; if (isVideo) { try { media.play(); } catch (e) {} } planSoon(); return; }
             // оригинала нет: показываем превью и предлагаем загрузить (фото — сразу, если лёгкое)
             const tu = await BlobDB.url(g.id, 'thumb');
             if (token !== my) return;
             if (tu) { if (isVideo) { poster.src = tu; poster.hidden = false; } else { media.hidden = false; media.src = tu; media.classList.add('is-preview'); } }
             miss.hidden = false; msg.textContent = 'Оригинала (' + fmtBytes(g.size || 0) + ') нет на этом устройстве — он лежит на Google Диске.'; fetchBtn.disabled = false;
             if (!isVideo && (g.size || 0) <= 25 * 1048576 && cloudReady() && googleInfo().hasToken) fetchOne(g, my);
+            planSoon();
         };
-        const fetchOne = async (g, my) => {
+        const fetchOne = async (g, my, manual) => {
             fetchBtn.disabled = true; msg.textContent = 'Загружаем с Google Диска…';
-            let r = null;
-            try { r = await fetchFull([g.id], (d, t, frac) => { if (token === my && frac != null) msg.textContent = 'Загружаем с Google Диска: ' + Math.round(frac * 100) + '%'; }); } catch (e) { toast('Не удалось загрузить: ' + (e && e.message ? e.message : e), { ms: 6000 }); }
+            let r = null, job = jobs.get(g.id);
+            if (!job && manual) {   // кнопка «Загрузить»: прежний путь, с подсказками про вход в Google
+                try { r = await fetchFull([g.id], (d, t, frac) => { if (token === my && frac != null) msg.textContent = 'Загружаем с Google Диска: ' + Math.round(frac * 100) + '%'; }); } catch (e) { toast('Не удалось загрузить: ' + (e && e.message ? e.message : e), { ms: 6000 }); }
+            } else {
+                // это фото могло уже качаться как соседнее — присоединяемся к той же загрузке
+                if (!job) job = startJob(g, false);
+                const sub = f => { if (token === my) msg.textContent = 'Загружаем с Google Диска: ' + Math.round(f * 100) + '%'; };
+                job.subs.add(sub);
+                const res = await job.p; job.subs.delete(sub);
+                r = { done: res === 'done' ? 1 : 0, missing: res === 'missing' ? 1 : 0 };
+            }
             await refreshLocal();
             if (token !== my) return;
             if (r && r.done) { media.classList.remove('is-preview'); show(); renderBody(); }
             else { fetchBtn.disabled = false; msg.textContent = r && r.missing ? 'Этого файла нет на Google Диске (возможно, он ещё не выгружен с другого устройства).' : 'Не удалось загрузить оригинал.'; }
         };
-        const go = d => { i = (i + d + list.length) % list.length; media.classList && media.classList.remove('is-preview'); show(); };
+        const go = d => { dir = d >= 0 ? 1 : -1; i = (i + d + list.length) % list.length; media.classList && media.classList.remove('is-preview'); show(); };
         el.addEventListener('click', async e => {
             const b = e.target.closest('[data-v]'); if (!b) { if (e.target === el) closeViewer(); return; }
             const act = b.dataset.v, g = list[i];
             if (act === 'close') closeViewer();
             else if (act === 'prev') go(-1); else if (act === 'next') go(1);
             else if (act === 'save') saveOne(g);
-            else if (act === 'fetch') fetchOne(g, token);
+            else if (act === 'fetch') fetchOne(g, token, true);
             else if (act === 'edit') editSheet([g], show);
             else if (act === 'del') await deleteItems([g], () => { list.splice(i, 1); if (!list.length) { closeViewer(); return; } if (i >= list.length) i = list.length - 1; show(); });
         });
         let sx = null;
         el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
         el.addEventListener('touchend', e => { if (sx === null || list.length < 2 || (isVideo && e.target.closest('video'))) { sx = null; return; } const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1); sx = null; }, { passive: true });
-        viewer = { el, key(e) { if (sheetStack.length) return; if (e.key === 'Escape') closeViewer(); else if (e.key === 'ArrowRight' && list.length > 1) go(1); else if (e.key === 'ArrowLeft' && list.length > 1) go(-1); } };
+        viewer = { el, stop() { stopped = true; queue = []; if (pfAbort) { try { pfAbort.abort(); } catch (e) {} } jobs.clear(); }, key(e) { if (sheetStack.length) return; if (e.key === 'Escape') closeViewer(); else if (e.key === 'ArrowRight' && list.length > 1) go(1); else if (e.key === 'ArrowLeft' && list.length > 1) go(-1); } };
         document.addEventListener('keydown', viewer.key);
         show();
     }
