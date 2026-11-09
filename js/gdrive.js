@@ -48,7 +48,8 @@ const G_LISTS = [
     { key: 'videos', get: () => videos, set: v => { videos = v; } },
     { key: 'songs', get: () => songs, set: v => { songs = v; } },         // песни-контейнеры: блоки, подписи, заметки (1.7.0)
     { key: 'scripts', get: () => scripts, set: v => { scripts = v; } },   // сценарии (1.7.0)
-    { key: 'musicfav', get: () => musicFavs, set: v => { musicFavs = v; } }   // избранное в «Музыке» (1.8.0): песни, альбомы, исполнители, композиторы
+    { key: 'musicfav', get: () => musicFavs, set: v => { musicFavs = v; } },   // избранное в «Музыке» (1.8.0): песни, альбомы, исполнители, композиторы
+    { key: 'dnd', get: () => dndGames, set: v => { dndGames = v; } }   // игры раздела «ДНД» (2.0.0): доска, персонажи, сюжет — одной записью на игру
 ];
 // Две страницы «Мое_совсек»: где лежат оригиналы и какие отметки «уже на Диске» хранятся на этом устройстве
 const G_GAL_SECS = {
@@ -337,6 +338,7 @@ function gLegacyStamp() {
     videos.forEach(g => { if (!g.updatedAt) g.updatedAt = Number(g.date) || 1; });
     songs.forEach(x => { if (!x.updatedAt) x.updatedAt = x.createdAt || 1; });
     scripts.forEach(x => { if (!x.updatedAt) x.updatedAt = x.createdAt || 1; });
+    dndGames.forEach(x => { if (!x.updatedAt) x.updatedAt = x.createdAt || 1; });
     musicFavs.forEach(x => { if (!x.updatedAt) x.updatedAt = 1; });
     // ключи, введённые до появления синхронизации ключей: ставим им время, чтобы они ушли на Диск (пустые и «по умолчанию» не трогаем)
     const meta = gMetaGet(), cur = gKeysObj(); let ch = false;
@@ -380,7 +382,7 @@ function cloudLocalChanged() {
 function gLocalSnapshot() {
     const meta = gMetaGet();
     const snap = { app: 'ilife', format: 1, appVersion: APP_VERSION, savedAt: Date.now(),
-        ideas, todos, prices, movies, gallery, videos, songs, scripts, musicfav: musicFavs, scalars: gScalars(), scalarsAt: meta.scalarsAt, deleted: meta.deleted };
+        ideas, todos, prices, movies, gallery, videos, songs, scripts, dnd: dndGames, musicfav: musicFavs, scalars: gScalars(), scalarsAt: meta.scalarsAt, deleted: meta.deleted };
     if (gCfg().keys) { snap.keys = gKeysObj(); snap.keysAt = meta.keysAt; }   // выключатель «Ключи тоже на Диск»
     return snap;
 }
@@ -432,7 +434,7 @@ function songMediaRefs(list) {
     return set;
 }
 // Все файлы, на которые ссылаются данные: вложения идей, обложки треков и обложки фильмов, картинки и голос в блоках песен
-function gAllMediaRefs() { const s = mediaRefs(ideas); mediaRefs(movies).forEach(id => s.add(id)); songMediaRefs(songs).forEach(id => s.add(id)); return s; }
+function gAllMediaRefs() { const s = mediaRefs(ideas); mediaRefs(movies).forEach(id => s.add(id)); songMediaRefs(songs).forEach(id => s.add(id)); if (typeof dndMediaRefs === 'function') dndMediaRefs(dndGames).forEach(id => s.add(id)); return s; }
 function gAllSongAudio() { return new Set(gAsList(songs).map(x => x.audioId).filter(Boolean)); }
 function gDraftIds() { const s = new Set(); try { (draft.files || []).forEach(f => s.add(f.id)); } catch (e) {} return s; }
 
@@ -441,14 +443,14 @@ async function gApply(merged) {
     gApplying = true;
     try {
         const oldRefs = gAllMediaRefs(), oldGal = new Set(gallery.map(g => g.id).concat(videos.map(g => g.id))), oldAudio = gAllSongAudio();
-        songs = Array.isArray(merged.songs) ? merged.songs : []; scripts = Array.isArray(merged.scripts) ? merged.scripts : []; musicFavs = Array.isArray(merged.musicfav) ? merged.musicfav : [];
+        songs = Array.isArray(merged.songs) ? merged.songs : []; scripts = Array.isArray(merged.scripts) ? merged.scripts : []; dndGames = Array.isArray(merged.dnd) ? merged.dnd : []; musicFavs = Array.isArray(merged.musicfav) ? merged.musicfav : [];
         ideas = merged.ideas; todos = merged.todos; prices = merged.prices; movies = merged.movies || []; gallery = Array.isArray(merged.gallery) ? merged.gallery : []; videos = Array.isArray(merged.videos) ? merged.videos : [];
         const sc = merged.scalars || {};
         if (sc.author && sc.author !== settings.author) settings.author = String(sc.author).slice(0, 30);
         if (sc.theme && sc.theme !== settings.theme && PALETTES.some(p => p.id === sc.theme)) applyTheme(sc.theme);
         if (sc.font && sc.font !== settings.font && FONTS.some(f => f.id === sc.font)) applyFont(sc.font);
         if (Array.isArray(sc.cats) && typeof ideaCatsApply === 'function') ideaCatsApply(sc.cats);
-        LS.set('settings', settings); LS.set('ideas', ideas); LS.set('todos', todos); LS.set('prices', prices); LS.set('movies', movies); LS.set('gallery', gallery); LS.set('videos', videos); LS.set('songs', songs); LS.set('scripts', scripts); LS.set('musicfav', musicFavs);
+        LS.set('settings', settings); LS.set('ideas', ideas); LS.set('todos', todos); LS.set('prices', prices); LS.set('movies', movies); LS.set('gallery', gallery); LS.set('videos', videos); LS.set('songs', songs); LS.set('scripts', scripts); LS.set('dnd_games', dndGames); LS.set('musicfav', musicFavs);
         // ключи: берём с Диска только если синхронизация ключей включена (иначе метки времени остаются своими)
         const metaNow = gMetaGet(); let keysChanged = false, keysAt = metaNow.keysAt;
         if (gCfg().keys && merged.keys) { keysChanged = gApplyKeys(merged.keys); keysAt = gKeysAtNorm(merged.keysAt); }
@@ -465,6 +467,7 @@ async function gApply(merged) {
         if (typeof galRefreshIfOpen === 'function') galRefreshIfOpen();
         if (typeof renderSongs === 'function') renderSongs();
         if (typeof renderScripts === 'function') renderScripts();
+        if (typeof dndAfterSync === 'function') dndAfterSync();
         if (typeof muFavChanged === 'function') muFavChanged();
         if (keysChanged) {
             try {
@@ -551,6 +554,7 @@ function gMediaMeta(id) {
         if (sg.coverId === id) return { name: 'cover.jpg', type: 'image/jpeg' };
         for (const b of sg.blocks || []) { const f = (b.imgs || []).concat(b.voices || []).find(x => x && x.id === id); if (f) return { name: f.name, type: f.type }; }
     }
+    if (typeof dndMediaMeta === 'function') { const dm = dndMediaMeta(id); if (dm) return dm; }
     return {};
 }
 // Отправляет недостающие вложения на Диск, скачивает чужие, убирает в корзину «ничьи» файлы.

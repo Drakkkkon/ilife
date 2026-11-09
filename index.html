@@ -24,12 +24,14 @@
     <!-- Дизайн «Android» (Material 3 Expressive), перенесён из My Money 4.8.1; размеры в rem (масштаб в Настройках) -->
     <link rel="stylesheet" href="css/android.css">
     <link rel="stylesheet" href="css/app.css">
+    <link rel="stylesheet" href="css/dnd.css">
     <!-- Шрифт Android (Pixel): Google Sans Flex. Если не загрузится (нет интернета) — Roboto и системный -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500;700&display=swap" rel="stylesheet">
     <!-- Ядро: значки, настройки, тема и масштаб применяются до отрисовки, чтобы не было мигания -->
     <script src="js/icons.js"></script>
+    <script src="js/dnd-icons.js"></script>
     <script src="js/core.js"></script>
     <script src="js/theme.js"></script>
 </head>
@@ -41,7 +43,7 @@
             <!-- Логотип и версия: нажатие на версию открывает «Настройки → О приложении → Журнал изменений» -->
             <div class="splash-brand">
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.9.0</span><i data-i="chevron_right"></i></button>
+                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.0.0</span><i data-i="chevron_right"></i></button>
             </div>
             <h1 id="splash-greeting" style="font-size:24px;font-weight:400">Здравствуйте!</h1>
             <div class="splash-center">
@@ -64,17 +66,29 @@
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                 <div class="brand-txt">
                     <h2>iLife</h2>
-                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.9.0</span><i data-i="chevron_right"></i></button>
+                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.0.0</span><i data-i="chevron_right"></i></button>
                 </div>
             </div>
-            <nav class="sidebar-nav">
+            <nav class="sidebar-nav main-nav">
                 <button type="button" data-tab="ideas"><i data-i="lightbulb"></i><span>Идеи</span></button>
                 <button type="button" data-tab="todo"><i data-i="checklist"></i><span>Дела</span></button>
                 <button type="button" data-tab="movies"><i data-i="movie"></i><span>Кино</span></button>
                 <button type="button" data-tab="music"><i data-i="library_music"></i><span>Музыка</span></button>
                 <button type="button" data-tab="scripts"><i data-i="edit_note"></i><span>Сценарии</span></button>
                 <button type="button" data-tab="sovsek"><i data-i="photo_library"></i><span>Мое_совсек</span></button>
+                <button type="button" data-dnd-open><i data-i="d20"></i><span>ДНД</span><i data-i="chevron_right" class="nav-go"></i></button>
                 <button type="button" data-tab="settings"><i data-i="settings"></i><span>Настройки</span></button>
+            </nav>
+            <!-- Меню раздела «ДНД»: заменяет главное, пока открыта любая страница ДНД (html[data-nav="dnd"]) -->
+            <nav class="sidebar-nav dnd-nav" aria-label="ДНД">
+                <button type="button" class="nav-back" data-dnd-back><i data-i="arrow_back"></i><span>Назад</span></button>
+                <div class="nav-title"><i data-i="d20"></i>ДНД</div>
+                <button type="button" data-tab="dnd-games"><i data-i="casino"></i><span>Игры</span></button>
+                <button type="button" data-tab="dnd-builder"><i data-i="dnd_board"></i><span>Конструктор</span></button>
+                <button type="button" data-tab="dnd-chars"><i data-i="groups"></i><span>Персонажи</span></button>
+                <button type="button" data-tab="dnd-visual"><i data-i="cube3d"></i><span>Вижуал</span></button>
+                <button type="button" data-tab="dnd-plot"><i data-i="account_tree"></i><span>Сюжет</span></button>
+                <button type="button" data-tab="dnd-settings"><i data-i="settings"></i><span>Настройки</span></button>
             </nav>
             <div class="sidebar-foot">Личное приложение · не для коммерческого использования</div>
         </aside>
@@ -89,7 +103,7 @@
                     <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                     <div class="brand-txt">
                         <b>iLife</b>
-                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">1.9.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
+                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.0.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
                     </div>
                 </div>
                 <!-- Поиск — в самом верху: по словам, #хештегам и датам -->
@@ -491,6 +505,167 @@
                 <div class="sov-pane" id="sov-video" hidden></div>
             </section>
 
+            <!-- ===================== ДНД: ИГРЫ (js/dnd.js) ===================== -->
+            <section id="dnd-games" class="tab" data-tab="dnd-games">
+                <header class="page-head">
+                    <div class="page-head-t"><div class="dnd-kicker"><i data-i="d20"></i>ДНД</div><h1 class="page-title">Игры</h1></div>
+                    <button type="button" class="btn btn-primary" id="dnd-games-new" title="Новая игра"><i data-i="add"></i>Новая</button>
+                </header>
+                <div class="dnd-toolbar">
+                    <span data-dnd-gamebar></span>
+                    <button type="button" class="btn" id="dnd-games-import" title="Импорт из Miro, файлов и картинок"><i data-i="file_upload"></i>Импорт</button>
+                </div>
+                <div class="searchwrap">
+                    <div class="searchbar"><i data-i="search"></i><input type="search" id="dnd-games-q" placeholder="Поиск по играм" autocomplete="off" aria-label="Поиск по играм"></div>
+                </div>
+                <div class="sc-listbar">
+                    <div class="chips" id="dnd-games-filter" role="group" aria-label="Какие игры показывать">
+                        <button type="button" class="chip is-on" data-f="all">Все</button>
+                        <button type="button" class="chip" data-f="created">Созданные</button>
+                        <button type="button" class="chip" data-f="imported">Импортированные</button>
+                    </div>
+                    <label class="sc-sortlbl">Порядок
+                        <select id="dnd-games-sort" aria-label="Порядок"><option value="new">Сначала свежие</option><option value="made">По дате создания</option><option value="abc">По алфавиту</option></select></label>
+                </div>
+                <div class="list-head"><h2>Мои игры</h2><span class="count" id="dnd-games-count"></span></div>
+                <div id="dnd-games-body" class="dg-grid"></div>
+            </section>
+
+            <!-- ===================== ДНД: КОНСТРУКТОР (доска как в Miro, js/dnd-board.js) ===================== -->
+            <section id="dnd-builder" class="tab tab-canvas" data-tab="dnd-builder">
+                <header class="page-head page-head-sm">
+                    <div class="page-head-t"><div class="dnd-kicker"><i data-i="d20"></i>ДНД</div><h1 class="page-title">Конструктор</h1></div>
+                </header>
+                <div id="dnd-builder-host" class="bd-host"></div>
+            </section>
+
+            <!-- ===================== ДНД: ПЕРСОНАЖИ (js/dnd-chars.js) ===================== -->
+            <section id="dnd-chars" class="tab" data-tab="dnd-chars">
+                <div id="dnd-chars-head">
+                    <header class="page-head">
+                        <div class="page-head-t"><div class="dnd-kicker"><i data-i="d20"></i>ДНД</div><h1 class="page-title">Персонажи</h1></div>
+                        <button type="button" class="btn btn-primary" id="dnd-chars-new" title="Новый персонаж"><i data-i="person_add"></i>Новый</button>
+                    </header>
+                    <div class="dnd-toolbar">
+                        <span data-dnd-gamebar></span>
+                        <button type="button" class="btn" id="dnd-chars-fromboard" title="Взять героев с карточек вида «Персонаж» на доске"><i data-i="dnd_board"></i>С доски</button>
+                    </div>
+                    <div id="dnd-chars-tools">
+                        <div class="searchwrap">
+                            <div class="searchbar"><i data-i="search"></i><input type="search" id="dnd-chars-q" placeholder="Поиск: имя, раса, класс" autocomplete="off" aria-label="Поиск по персонажам"></div>
+                        </div>
+                        <div class="chips dc-filter" id="dnd-chars-filter" role="group" aria-label="Вид персонажа">
+                            <button type="button" class="chip is-on" data-f="all">Все</button>
+                            <button type="button" class="chip" data-f="pc">Игроки</button>
+                            <button type="button" class="chip" data-f="npc">NPC</button>
+                            <button type="button" class="chip" data-f="ally">Союзники</button>
+                            <button type="button" class="chip" data-f="villain">Злодеи</button>
+                            <button type="button" class="chip" data-f="monster">Монстры</button>
+                        </div>
+                        <div class="list-head"><h2>Персонажи игры</h2><span class="count" id="dnd-chars-count"></span></div>
+                    </div>
+                </div>
+                <div id="dnd-chars-body"></div>
+            </section>
+
+            <!-- ===================== ДНД: ВИЖУАЛ (пока заглушка) ===================== -->
+            <section id="dnd-visual" class="tab" data-tab="dnd-visual">
+                <header class="page-head">
+                    <div class="page-head-t"><div class="dnd-kicker"><i data-i="d20"></i>ДНД</div><h1 class="page-title">Вижуал</h1></div>
+                </header>
+                <div class="dv-stage">
+                    <div class="dv-cube" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                    <h2>Страничка откроется скоро</h2>
+                    <p>Здесь будет объёмное 3D-пространство: можно будет воочию увидеть, как проходит игра, куда двигаются персонажи и что происходит на карте.</p>
+                    <ul class="dv-soon">
+                        <li><i data-i="map"></i>Карта кампании в 3D</li>
+                        <li><i data-i="groups"></i>Фигурки персонажей и их путь</li>
+                        <li><i data-i="account_tree"></i>Ход сюжета на карте</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- ===================== ДНД: СЮЖЕТ (блоки со стрелками, тот же движок доски) ===================== -->
+            <section id="dnd-plot" class="tab tab-canvas" data-tab="dnd-plot">
+                <header class="page-head page-head-sm">
+                    <div class="page-head-t"><div class="dnd-kicker"><i data-i="d20"></i>ДНД</div><h1 class="page-title">Сюжет</h1></div>
+                </header>
+                <div id="dnd-plot-host" class="bd-host"></div>
+            </section>
+
+            <!-- ===================== ДНД: НАСТРОЙКИ ===================== -->
+            <section id="dnd-settings" class="tab" data-tab="dnd-settings">
+                <header class="page-head">
+                    <div class="page-head-t"><div class="dnd-kicker"><i data-i="d20"></i>ДНД</div><h1 class="page-title">Настройки</h1></div>
+                </header>
+
+                <div class="card" id="dnd-board-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="dnd_board"></i></span><span class="ttl">Доска и новые игры</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <label class="field-label" for="dns-sys">Система по умолчанию</label>
+                        <select id="dns-sys" aria-label="Система по умолчанию"></select>
+                        <div class="switch-row"><div class="tx"><b>Сетка на новых досках</b><span class="sub">Точечная сетка помогает выравнивать карточки</span></div><input type="checkbox" class="switch" id="dns-grid" aria-label="Сетка на новых досках"></div>
+                        <div class="switch-row"><div class="tx"><b>Прилипание к сетке</b><span class="sub">Карточки при перетаскивании встают ровно по узлам сетки (для новых досок)</span></div><input type="checkbox" class="switch" id="dns-snap" aria-label="Прилипание к сетке"></div>
+                        <div class="switch-row"><div class="tx"><b>Миникарта</b><span class="sub">Маленький обзор всей доски в углу</span></div><input type="checkbox" class="switch" id="dns-mini" aria-label="Миникарта"></div>
+                        <label class="field-label" for="dns-scale" style="margin-top:0.75rem">Размер текста на досках: <b id="dns-scale-val">100 %</b></label>
+                        <input type="range" id="dns-scale" min="70" max="160" step="5" value="100" aria-label="Размер текста на досках">
+                        <span class="field-label" style="margin-top:0.75rem">Цвет новых стикеров</span>
+                        <div class="bd-sws" id="dns-sticky"></div>
+                        <p class="hint" style="margin-top:0.5rem">Текущая игра: <b id="dnd-cur-name">не выбрана</b>. Настройки доски запоминаются на этом устройстве.</p>
+                    </div>
+                </div>
+
+                <div class="card is-collapsed" id="dnd-chars-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="groups"></i></span><span class="ttl">Лист персонажа</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <p class="hint" style="margin-bottom:0.5rem">Какие разделы показывать в листе персонажа. Скрытые разделы остаются в данных — их можно вернуть в любой момент.</p>
+                        <div class="dns-secs" id="dns-sections"></div>
+                    </div>
+                </div>
+
+                <!-- Импорт из Miro: ссылка на инструкцию ведёт в блок «Сайты и инструкции» внизу «Настроек» -->
+                <div class="card" id="dnd-import-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="file_upload"></i></span><span class="ttl">Импорт из Miro и файлов</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <p class="hint" style="margin-bottom:0.75rem">Таблицы CSV и данные JSON из Miro, картинки доски (JPG, PNG, SVG), обычный текст и файлы игр iLife превращаются в карточки на доске «Конструктора».</p>
+                        <div id="dnd-import-host"></div>
+                        <p class="instr-row"><button type="button" class="linkbtn instr-link" data-instr="instr-miro"><i data-i="help"></i>Как выгрузить доску из Miro — инструкция</button></p>
+                    </div>
+                </div>
+
+                <div class="card" id="dnd-data-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="backup"></i></span><span class="ttl">Данные ДНД</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <p class="hint" id="dnd-data-info" style="margin-bottom:0.5rem"></p>
+                        <p class="hint" style="margin-bottom:0.75rem">Игры хранятся на устройстве и уходят на Google Диск вместе с остальными данными, если вход выполнен. Картинки (портреты, образы, картинки на доске) синхронизируются как вложения. Файл игры можно переслать — он открывается на странице «Игры».</p>
+                        <div class="btn-group">
+                            <button type="button" class="btn" id="dnd-export-all"><i data-i="download"></i>Сохранить все игры</button>
+                            <button type="button" class="btn" id="dnd-import-games"><i data-i="file_upload"></i>Загрузить файл игр</button>
+                            <button type="button" class="btn btn-danger" id="dnd-clear-all"><i data-i="delete"></i>Удалить все игры</button>
+                        </div>
+                        <input type="file" id="dnd-import-file" accept=".json,application/json" hidden>
+                    </div>
+                </div>
+
+                <div class="card is-collapsed" id="dnd-about-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="info"></i></span><span class="ttl">Как пользоваться доской</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <ul class="dns-keys">
+                            <li><b>Двойной щелчок</b> по пустому месту — новый стикер (в «Сюжете» — новый блок); по предмету — правка.</li>
+                            <li><b>Колесо мыши</b> — масштаб; <b>пробел</b> + перетаскивание, <b>средняя кнопка</b> или инструмент «Рука» — сдвиг; на телефоне — два пальца.</li>
+                            <li><b>Стрелка-связь</b>: потяните от точки на краю карточки к другой карточке; конец можно оставить в воздухе.</li>
+                            <li><b>Горячие клавиши</b>: V выбор, H рука, N стикер, K карточка, T текст, R фигура, F рамка, C связь, P перо, Delete удалить, Ctrl+Z / Ctrl+Shift+Z отмена и возврат, Ctrl+C / V / D копия, вставка, дубль, Ctrl+G группа, Shift+1 показать всё.</li>
+                            <li><b>Вставка</b>: Ctrl+V вставляет скопированные предметы, картинку из буфера или текст (как стикер). Файлы можно перетащить на доску.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
             <!-- ===================== НАСТРОЙКИ ===================== -->
             <section id="settings" class="tab" data-tab="settings">
                 <header class="page-head"><h1 class="page-title">Настройки</h1></header>
@@ -710,13 +885,28 @@
                     <div class="card-body">
                         <div class="about-head">
                             <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">1.9.0</span></div></div>
+                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">2.0.0</span></div></div>
                         </div>
                         <p style="margin-bottom:8px">Личное приложение для себя. Дизайн и логика — из My Money 4.8.1.</p>
                         <p class="hint" style="margin-bottom:16px"><b>Не для коммерческого использования:</b> приложение создано только для личных, некоммерческих целей — его нельзя продавать, сдавать в аренду или использовать в бизнесе. Логотип (папка «iLife ’09») — сторонняя картинка, права на неё принадлежат её владельцам; он используется здесь только в личных целях.</p>
 
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
+                        <div class="cl-version">
+                            <h4>2.0.0 <span class="cl-tag">Новый раздел «ДНД»</span></h4>
+                            <ul>
+                                <li>В главном меню появился пункт <b>«ДНД»</b>. По нажатию снизу открывается отдельное меню раздела с кнопкой <b>«Назад»</b> — она возвращает в обычное меню и на страницу, где вы были. На телефоне меню раздела выезжает снизу, на компьютере заменяет список слева.</li>
+                                <li><b>Игры</b> — все созданные и импортированные игры карточками: обложка, система, состояние, сколько карточек, героев и блоков сюжета. Поиск, фильтр «Созданные / Импортированные», сортировка, дубль, удаление, сохранение игры файлом.</li>
+                                <li><b>Конструктор</b> — бесконечная доска в стиле Miro: стикеры, карточки (персонаж, локация, монстр, предмет, квест, сцена, правило, заметка), текст, фигуры, рамки, рисование от руки, картинки, стрелки между карточками (кривая, прямая, с изломом, подписи), выделение рамкой и группы, выравнивание, замок, слои, копирование, отмена и возврат, миникарта, сетка, масштаб и сдвиг (колесо мыши, два пальца), готовые заготовки, сохранение доски в PNG.</li>
+                                <li><b>Персонажи</b> — выберите игру, и у каждого героя будет подробный лист: основное, характеристики и бой (модификаторы считаются сами), внешность, характер и тайны, история, связи с другими героями, снаряжение, заметки; портрет, <b>стили одежды</b> с картинкой и описанием каждого образа и галерея картинок. Героев можно взять прямо с карточек доски.</li>
+                                <li><b>Вижуал</b> — пока заглушка «Страничка откроется скоро»; здесь будет 3D-пространство игры.</li>
+                                <li><b>Сюжет</b> — схема в виде блоков со стрелками. В блоке: тип (начало, сцена, событие, выбор, бой, локация, персонаж, награда, финал), короткое и подробное описание, любое число «вводных» (с готовыми вопросами), участники, метки, заметки ведущему, состояние. Кнопка «Выстроить» расставляет блоки слева направо по ходу стрелок.</li>
+                                <li><b>Настройки ДНД</b> — система по умолчанию, сетка, прилипание, миникарта, размер текста и цвет стикеров на досках, какие разделы показывать в листе персонажа, сохранение и загрузка всех игр, подсказки по управлению доской.</li>
+                                <li><b>Импорт</b> из Miro и файлов: таблица CSV («Export to CSV» в Miro), данные JSON из Miro REST API (стикеры, карточки, фигуры, текст, рамки и стрелки между ними), картинки доски (JPG, PNG, SVG), обычный текст и файлы игр iLife. PDF из Miro не читается — сохраните доску картинкой. В «Настройки → Сайты и инструкции» добавлены ссылки на Miro и пошаговая инструкция «Как выгрузить доску из Miro».</li>
+                                <li>Игры ДНД входят в резервную копию и синхронизируются через Google Диск вместе с остальными данными (картинки — как вложения). Нижнее меню на телефоне теперь в два ряда по четыре раздела.</li>
+                                <li>Версия 2.0.0 нужна на всех устройствах, где открывается «ДНД»: на более старых версиях игры не появятся.</li>
+                            </ul>
+                        </div>
                         <div class="cl-version">
                             <h4>1.9.0 <span class="cl-tag">Фото и видео из X · меню в два ряда</span></h4>
                             <ul>
@@ -889,6 +1079,11 @@
                                 <li><a class="lk-a" href="https://github.com/FixTweet/FxTwitter" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>FxTwitter</b><small>сервис для способа «Ссылки на посты»</small></span></a></li>
                                 <li><a class="lk-a" href="https://docs.x.com/x-api/getting-started/pricing" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>X API — цены</b><small>официальный API платный (в iLife не используется)</small></span></a></li>
                             </ul></section>
+                            <section class="lk-group"><h4><i data-i="dnd_board"></i>Miro (для «ДНД»)</h4><ul class="lk-list">
+                                <li><a class="lk-a" href="https://miro.com" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Miro — ваши доски</b><small>miro.com — откройте нужную доску на компьютере</small></span></a></li>
+                                <li><a class="lk-a" href="https://help.miro.com/hc/en-us/articles/360017572754-Board-export" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Miro — экспорт доски</b><small>справка Miro: JPG, PDF, SVG и CSV (на английском)</small></span></a></li>
+                                <li><a class="lk-a" href="https://developers.miro.com" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Miro для разработчиков</b><small>developers.miro.com — токен доступа для выгрузки JSON (для опытных)</small></span></a></li>
+                            </ul></section>
                             <section class="lk-group"><h4><i data-i="link"></i>GitHub</h4><ul class="lk-list">
                                 <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Репозиторий iLife</b><small>github.com/Drakkkkon/ilife</small></span></a></li>
                                 <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife/upload/main" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Загрузить файлы новой версии</b><small>Add file → Upload files</small></span></a></li>
@@ -1029,6 +1224,51 @@
                                 </ol>
                             </div>
                         </details>
+                        <details class="fold" id="instr-miro">
+                            <summary><i data-i="help"></i>Как выгрузить доску из Miro в iLife — пошагово</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-tabcard="dnd-settings|dnd-import-card"><i data-i="arrow_upward"></i>К блоку «Импорт из Miro и файлов» в настройках ДНД</button></p>
+                                <p class="hint">Miro не умеет отдавать доску одним файлом «для других программ», поэтому iLife понимает сразу несколько форматов. Самый простой — таблица CSV. Всё делается <b>на компьютере в браузере</b>: в приложении Miro на телефоне и планшете выгрузки в CSV нет. Если выгрузки нет вообще — проверьте, что владелец доски разрешил экспорт.</p>
+
+                                <p class="xb-h">Способ 1. Таблица CSV — рекомендуется</p>
+                                <ol class="steps">
+                                    <li>Откройте доску на <a href="https://miro.com" target="_blank" rel="noopener noreferrer">miro.com</a> в Chrome, Firefox или Safari (или в программе Miro для компьютера).</li>
+                                    <li>Выделите нужное: выберите рамку целиком или перетяните выделение по стикерам и карточкам (можно добавлять предметы, удерживая <b>Shift</b>).</li>
+                                    <li>Над выделенным появится панель. Нажмите на ней три точки <b>«⋯»</b> и выберите <b>«Export to CSV»</b>. Чтобы выгрузить <b>всю доску сразу</b>, нажмите три точки в левом верхнем углу → <b>Board</b> → <b>Export</b> → <b>Export to spreadsheet (CSV)</b>. Файл сохранится в «Загрузки».</li>
+                                    <li>В iLife откройте <b>«ДНД» → «Настройки» → «Импорт из Miro и файлов»</b>, нажмите на рамку «Выберите файлы» и выберите этот файл.</li>
+                                    <li>Выберите «Новая игра» (или добавьте в уже выбранную игру), впишите название и нажмите <b>«Импортировать»</b>. Каждая строка таблицы станет карточкой (или стикером — как выберете), метки превратятся в метки карточек. Игра появится на странице «Игры» с пометкой «Из Miro».</li>
+                                </ol>
+                                <p class="hint">Таблица хранит только текст, без положения предметов на доске и без стрелок: карточки встанут ровной сеткой, дальше их можно переставить и соединить. Если нужно сохранить расположение, используйте способ 2 или 3.</p>
+
+                                <p class="xb-h">Способ 2. Картинка доски</p>
+                                <ol class="steps">
+                                    <li>В Miro нажмите три точки <b>«⋯»</b> в левом верхнем углу → <b>Board</b> → <b>Save as image</b>. Выберите область доски и размер (Small, Medium или Large — это JPG; Vector — векторный файл, берите SVG) и нажмите <b>Export</b>.</li>
+                                    <li>Импортируйте файл в iLife так же, как в способе 1: картинка ляжет на доску «Конструктора» одним предметом, который можно увеличить и обвести карточками. На бесплатном тарифе Miro картинка получается в невысоком разрешении.</li>
+                                </ol>
+                                <p class="hint">Файл PDF iLife не открывает: у Miro есть и «Save as PDF», но для iLife сохраняйте доску картинкой (JPG, PNG или SVG).</p>
+
+                                <p class="xb-h">Способ 3. Файл JSON из Miro REST API — для опытных</p>
+                                <ol class="steps">
+                                    <li>Зайдите на <a href="https://developers.miro.com" target="_blank" rel="noopener noreferrer">developers.miro.com</a>, создайте своё приложение и получите <b>токен доступа</b> (Access token) с правом читать доски.</li>
+                                    <li>Номер доски — в адресе доски: <span class="code">miro.com/app/board/<b>uXjV…=</b>/</span>. Знак «=» в запросе пишется как <span class="code">%3D</span>.</li>
+                                    <li>Запросом с заголовком <span class="code">Authorization: Bearer ВАШ_ТОКЕН</span> получите два ответа: <span class="code">https://api.miro.com/v2/boards/НОМЕР/items?limit=50</span> (предметы) и <span class="code">https://api.miro.com/v2/boards/НОМЕР/connectors?limit=50</span> (стрелки). Для этого подойдут программы Postman, Insomnia или команда curl. Если на доске больше 50 предметов, повторяйте запрос с параметром <span class="code">cursor</span> из ответа.</li>
+                                    <li>Сохраните каждый ответ в файл с окончанием <b>.json</b> и загрузите <b>оба файла вместе</b> в «Импорт из Miro и файлов». iLife сам свяжет стрелки с карточками и перенесёт положение, цвета и рамки.</li>
+                                </ol>
+                                <p class="hint">Картинки Miro по этому API не отдаёт — они пропускаются (в итоге iLife напишет, сколько пропущено). Предметы внутри рамок встают на свои места.</p>
+
+                                <p class="xb-h">Способ 4. Обычный текст</p>
+                                <ol class="steps">
+                                    <li>Соберите список идей в файле .txt или .md: каждый абзац (через пустую строку) станет карточкой, первая строка — её названием.</li>
+                                </ol>
+
+                                <p class="xb-h">Если не получилось</p>
+                                <ol class="steps">
+                                    <li><b>Нет пункта «Export to CSV».</b> Откройте доску на компьютере в Chrome, Firefox или Safari (в Opera, старом Edge, на телефоне и планшете выгрузки нет) и проверьте, что владелец доски разрешил экспорт.</li>
+                                    <li><b>iLife пишет «Ничего не импортировано».</b> Откройте файл в блокноте: в первой строке таблицы должны быть названия столбцов (Text, Title, Description, Tags и т. п.). Для JSON — в файле должны быть предметы или стрелки Miro.</li>
+                                    <li><b>Карточки встали не там.</b> После импорта выделите нужные карточки рамкой и перетащите; в меню «⋯» доски есть «Показать всё».</li>
+                                </ol>
+                            </div>
+                        </details>
                     </div>
                 </div>
             </section>
@@ -1037,14 +1277,25 @@
         </div>
 
         <!-- Нижняя навигация (телефон) -->
-        <nav class="mobile-nav" aria-label="Разделы">
+        <nav class="mobile-nav main-nav" aria-label="Разделы">
             <button type="button" data-tab="ideas"><span class="pill"><i data-i="lightbulb"></i></span><span>Идеи</span></button>
             <button type="button" data-tab="todo"><span class="pill"><i data-i="checklist"></i></span><span>Дела</span></button>
             <button type="button" data-tab="movies"><span class="pill"><i data-i="movie"></i></span><span>Кино</span></button>
             <button type="button" data-tab="music"><span class="pill"><i data-i="library_music"></i></span><span>Музыка</span></button>
             <button type="button" data-tab="scripts"><span class="pill"><i data-i="edit_note"></i></span><span>Сценарии</span></button>
             <button type="button" data-tab="sovsek"><span class="pill"><i data-i="photo_library"></i></span><span>Мое_совсек</span></button>
+            <button type="button" data-dnd-open><span class="pill"><i data-i="d20"></i></span><span>ДНД</span></button>
             <button type="button" data-tab="settings"><span class="pill"><i data-i="settings"></i></span><span>Настройки</span></button>
+        </nav>
+        <!-- Нижнее меню раздела «ДНД» с кнопкой «Назад» -->
+        <nav class="mobile-nav dnd-nav" aria-label="ДНД">
+            <button type="button" class="nav-back" data-dnd-back><span class="pill"><i data-i="arrow_back"></i></span><span>Назад</span></button>
+            <button type="button" data-tab="dnd-games"><span class="pill"><i data-i="casino"></i></span><span>Игры</span></button>
+            <button type="button" data-tab="dnd-builder"><span class="pill"><i data-i="dnd_board"></i></span><span>Конструктор</span></button>
+            <button type="button" data-tab="dnd-chars"><span class="pill"><i data-i="groups"></i></span><span>Персонажи</span></button>
+            <button type="button" data-tab="dnd-visual"><span class="pill"><i data-i="cube3d"></i></span><span>Вижуал</span></button>
+            <button type="button" data-tab="dnd-plot"><span class="pill"><i data-i="account_tree"></i></span><span>Сюжет</span></button>
+            <button type="button" data-tab="dnd-settings"><span class="pill"><i data-i="settings"></i></span><span>Настройки</span></button>
         </nav>
 
         <!-- Плавающая кнопка: быстро перейти к вводу -->
@@ -1072,6 +1323,11 @@
     <script src="js/movies.js"></script>
     <script src="js/songs.js"></script>
     <script src="js/scripts.js"></script>
+    <script src="js/dnd.js"></script>
+    <script src="js/dnd-board.js"></script>
+    <script src="js/dnd-board-ui.js"></script>
+    <script src="js/dnd-pages.js"></script>
+    <script src="js/dnd-chars.js"></script>
     <script src="js/config.js"></script>
     <script src="js/gdrive.js"></script>
     <script src="js/musictags.js"></script>

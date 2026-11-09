@@ -1,0 +1,10 @@
+# служебные файлы операционных систем и редакторов
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+.vscode/
+.idea/
+node_modules/
+# архивы версий хранятся на Google Диске, не в репозитории
+*.zip
