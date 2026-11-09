@@ -6,19 +6,19 @@
 // с остальными списками, см. gdrive.js):
 //   { id, title, system, status, desc, hue, coverId?, source: 'created'|'miro'|'file', createdAt, updatedAt,
 //     files{}  — сведения о картинках игры (id → { name, type }); сами картинки лежат в IndexedDB (BlobDB), как вложения идей,
-//     board{ items[], grid, snap }  — доска «Конструктора» (стикеры, карточки, текст, фигуры, рамки, картинки, рисунок, связи),
+//     board{ items[], grid, snap }  — доска «Карточек и Заметок» (стикеры, карточки, текст, фигуры, рамки, картинки, рисунок, связи),
 //     plot { items[] }              — схема «Сюжета» (блоки со стрелками),
 //     chars[]                       — персонажи (js/dnd-chars.js) }
 // Положение и масштаб доски запоминаются только на этом устройстве (ilife_dnd_views): в синхронизацию они не попадают.
 //
-// Меню: у главного меню появилась кнопка «ДНД». Она заменяет меню своим (Игры, Конструктор, Персонажи, Вижуал, Сюжет,
+// Меню: у главного меню появилась кнопка «ДНД». Она заменяет меню своим (Игры, Карточки и Заметки, Персонажи, Вижуал, Сюжет,
 // Настройки) с кнопкой «Назад»; признак — html[data-nav="dnd"]. Страницы раздела: id dnd-games … dnd-settings (js/app.js, TABS).
 // =====================================================================================================
 
 let dndGames = LS.get('dnd_games', []);
 if (!Array.isArray(dndGames)) dndGames = [];
 let dndActiveId = LS.get('dnd_active', '');
-const dndCfg = Object.assign({ grid: true, snap: false, minimap: true, textScale: 100, confirmDelete: true, system: 'D&D 5e', stickyColor: '#fff3a3', cols: 5, sections: {} }, LS.get('dnd_cfg', {}));
+const dndCfg = Object.assign({ grid: true, snap: false, minimap: true, textScale: 100, confirmDelete: true, system: 'D&D 5e', stickyColor: '#fff3a3', cols: 5, sections: {}, autoTags: true, autoTagsAdd: true, autoDeck: true }, LS.get('dnd_cfg', {}));
 const dndCfgSave = () => LS.set('dnd_cfg', dndCfg);
 const dndUi = Object.assign({ q: '', filter: 'all', sort: 'new' }, LS.get('dnd_ui', {}));
 const dndUiSave = () => LS.set('dnd_ui', { q: '', filter: dndUi.filter, sort: dndUi.sort });
@@ -28,7 +28,7 @@ const DND_SYSTEMS = ['D&D 5e', 'D&D 5.5 (2024)', 'Pathfinder 2e', 'Call of Cthul
 const DND_STATUS = [{ k: 'idea', n: 'Идея' }, { k: 'prep', n: 'Подготовка' }, { k: 'run', n: 'Идёт' }, { k: 'pause', n: 'Пауза' }, { k: 'done', n: 'Завершена' }];
 const DND_HUES = [265, 330, 12, 38, 140, 175, 205, 235];
 
-// Карточки доски: виды и цвета (Конструктор) и блоки сюжета
+// Карточки доски: виды и цвета (Карточки и Заметки) и блоки сюжета
 const BD_CARD_KINDS = [
     { k: 'char', n: 'Персонаж', c: '#7c4dff', i: 'person' }, { k: 'loc', n: 'Локация', c: '#00897b', i: 'pin' }, { k: 'mon', n: 'Монстр', c: '#d32f2f', i: 'skull' },
     { k: 'item', n: 'Предмет', c: '#f9a825', i: 'gem' }, { k: 'quest', n: 'Квест', c: '#1e88e5', i: 'flag' }, { k: 'scene', n: 'Сцена', c: '#8e24aa', i: 'movie' },
@@ -49,7 +49,7 @@ const bdKind = (list, k) => list.find(x => x.k === k) || list[list.length - 1];
 // ---------- Данные ----------
 function saveDnd() { if (typeof cloudLocalChanged === 'function') cloudLocalChanged(); return LS.set('dnd_games', dndGames); }
 const saveDndSoon = debounce(() => saveDnd(), 600);
-function dndTouch(g) { if (g) g.updatedAt = Date.now(); saveDndSoon(); }
+function dndTouch(g) { if (g) { g.updatedAt = Date.now(); if (typeof dndTagReset === 'function') dndTagReset(g); } saveDndSoon(); }
 const dndGame = id => dndGames.find(g => g.id === id) || null;
 function dndCur() { return dndGame(dndActiveId) || null; }
 function dndSetActive(id) {
@@ -124,6 +124,7 @@ function dndTabOpened(id) {
     if (id === 'dnd-games') renderDndGames();
     if (id === 'dnd-builder' && typeof dndBuilderOpened === 'function') dndBuilderOpened();
     if (id === 'dnd-plot' && typeof dndPlotOpened === 'function') dndPlotOpened();
+    if (id === 'dnd-visual' && typeof dndVisualOpened === 'function') dndVisualOpened();
     if (id === 'dnd-chars' && typeof dndCharsOpened === 'function') dndCharsOpened();
     if (id === 'dnd-settings') renderDndSettings();
     dndRefreshHeaders();
@@ -244,8 +245,8 @@ function renderDndGames() {
 }
 function dndGameMenu(g) {
     const items = [
-        ['sel', 'check', 'Сделать активной'], ['open', 'dnd_board', 'Открыть в «Конструкторе»'], ['chars', 'groups', 'Персонажи'], ['plot', 'account_tree', 'Сюжет'],
-        ['edit', 'edit', 'Изменить название и обложку'], ['dup', 'content_copy', 'Дублировать'], ['exp', 'download', 'Сохранить файлом (JSON)'], ['del', 'delete', 'Удалить']
+        ['sel', 'check', 'Сделать активной'], ['open', 'dnd_board', 'Открыть в «Карточках и Заметках»'], ['chars', 'groups', 'Персонажи'], ['plot', 'account_tree', 'Сюжет'],
+        ['edit', 'edit', 'Изменить название и обложку'], ['dup', 'content_copy', 'Дублировать'], ['expx', 'picture_as_pdf', 'Вывод: Miro, PDF, текст…'], ['exp', 'download', 'Сохранить файлом (JSON)'], ['del', 'delete', 'Удалить']
     ];
     const sh = openSheet({
         title: g.title, html: '<div class="dg-menu">' + items.map(i => '<button type="button" class="dg-mi' + (i[0] === 'del' ? ' is-danger' : '') + '" data-a="' + i[0] + '">' + ic(i[1]) + '<span>' + i[2] + '</span></button>').join('') + '</div>',
@@ -259,6 +260,7 @@ function dndGameMenu(g) {
             else if (a === 'edit') setTimeout(() => dndGameFormSheet(g), 220);
             else if (a === 'dup') { const c = JSON.parse(JSON.stringify(g)); c.id = uid('dg'); c.title = g.title + ' (копия)'; c.createdAt = c.updatedAt = Date.now(); dndGames.unshift(c); saveDnd(); renderDndGames(); toast('Копия создана'); }
             else if (a === 'exp') dndExportGames([g.id]);
+            else if (a === 'expx') setTimeout(() => dndExportSheet(g, 'board'), 220);
             else if (a === 'del') {
                 const ok = await confirmSheet('Удалить игру?', '«' + g.title + '» будет удалена вместе с доской, персонажами и сюжетом. Отменить это нельзя.', 'Удалить', true);
                 if (!ok) return;
@@ -441,6 +443,11 @@ async function dndImportFiles(files, o) {
         const name = f.name || 'файл', ext = (name.split('.').pop() || '').toLowerCase();
         try {
             if (/^image\//.test(f.type) || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) {
+                if (o.imgAs === 'emoji' && typeof dndEmojiImportSheet === 'function') {   // картинка из эмодзи (скриншот Miro): сетка, распознавание, правка
+                    const er = await dndEmojiImportSheet(f, {});
+                    if (er) { res.items.push(dndEmojiItem(er.data, name.replace(/\.[^.]+$/, ''), { x: 0, y: 0 })); res.info.emoji = (res.info.emoji || 0) + 1; } else addNote('«' + name + '»: распознавание отменено.');
+                    continue;
+                }
                 if (!target) { target = { files: {}, tmp: true }; }
                 res.items.push(await dndReadImageFile(target, f)); res.info.image = (res.info.image || 0) + 1; res._imgTarget = target; continue;
             }
@@ -499,6 +506,7 @@ function dndImportSummary(res) {
     if (i.frame) parts.push(dndFmtN(i.frame, 'рамка', 'рамки', 'рамок'));
     if (i.conn) parts.push(dndFmtN(i.conn, 'связь', 'связи', 'связей'));
     if (i.image) parts.push(dndFmtN(i.image, 'картинка', 'картинки', 'картинок'));
+    if (i.emoji) parts.push(dndFmtN(i.emoji, 'картинка из эмодзи', 'картинки из эмодзи', 'картинок из эмодзи'));
     return parts.join(', ');
 }
 
@@ -513,18 +521,19 @@ function dndImportWidget(host, onDone) {
         '<div class="field-pair"><span class="field-label">Куда добавить</span><div class="seg" id="di-mode"><button type="button" data-m="new" class="is-on">' + ic('add') + '<span>Новая игра</span></button><button type="button" data-m="active"' + (cur ? '' : ' disabled') + '>' + ic('dnd_board') + '<span>' + (cur ? 'В «' + esc(cur.title.length > 18 ? cur.title.slice(0, 17) + '…' : cur.title) + '»' : 'В активную') + '</span></button></div></div>' +
         '<div class="field-pair" id="di-title-row"><label class="field-label" for="di-title">Название новой игры</label><input type="text" id="di-title" maxlength="80" placeholder="Доска из Miro"></div>' +
         '<div class="field-pair" id="di-as-row"><span class="field-label">Строки таблицы и текст превратить в</span><div class="seg" id="di-as"><button type="button" data-a="card" class="is-on">' + ic('card') + '<span>Карточки</span></button><button type="button" data-a="sticky">' + ic('sticky') + '<span>Стикеры</span></button></div></div>' +
+        '<div class="field-pair" id="di-img-row" hidden><span class="field-label">Картинки</span><div class="seg" id="di-img"><button type="button" data-g="pic" class="is-on">' + ic('image') + '<span>Оставить картинкой</span></button><button type="button" data-g="emoji">' + ic('emoji') + '<span>Картинка из эмодзи</span></button></div><p class="hint" style="margin:0.25rem 0 0">Для рисунка, собранного из эмодзи: iLife найдёт клетки, узнает значки, и каждую клетку можно будет править.</p></div>' +
         '<div class="field-pair" id="di-cols-row"><label class="field-label" for="di-cols">Карточек в ряд</label><input type="number" id="di-cols" min="1" max="20" value="' + (dndCfg.cols || 5) + '"></div>' +
         '<button type="button" class="btn btn-primary btn-wide" id="di-go"><i data-i="check"></i>Импортировать</button></div>' +
         '<div class="di-result" id="di-result" hidden></div>';
     hydrateIcons(host);
-    let files = [], mode = cur ? 'active' : 'new', as = 'card';
+    let files = [], mode = cur ? 'active' : 'new', as = 'card', imgAs = 'pic';
     const $h = s => host.querySelector(s);
     const setMode = m => { mode = m; $$('#di-mode button', host).forEach(b => b.classList.toggle('is-on', b.dataset.m === m)); $h('#di-title-row').hidden = m !== 'new'; };
     const show = () => {
         $h('#di-opts').hidden = !files.length;
         $h('#di-files').innerHTML = files.map((f, i) => '<span class="chip">' + ic(/image/.test(f.type) ? 'image' : 'description') + esc(f.name) + '<button type="button" class="icon-btn chip-x" data-i="' + i + '" aria-label="Убрать">' + ic('close') + '</button></span>').join('');
         const needsAs = files.some(f => /\.(csv|txt|md)$/i.test(f.name) || /^text\//.test(f.type));
-        $h('#di-as-row').hidden = !needsAs; $h('#di-cols-row').hidden = !needsAs;
+        $h('#di-as-row').hidden = !needsAs; $h('#di-cols-row').hidden = !needsAs; $h('#di-img-row').hidden = !files.some(f => /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif)$/i.test(f.name));
     };
     const add = list => { files = files.concat(Array.from(list)); $h('#di-result').hidden = true; show(); if (!$h('#di-title').value) $h('#di-title').placeholder = 'Доска из Miro'; };
     const inp = $h('#di-file'), drop = $h('#di-drop');
@@ -536,13 +545,14 @@ function dndImportWidget(host, onDone) {
     drop.addEventListener('drop', e => { if (e.dataTransfer && e.dataTransfer.files.length) add(e.dataTransfer.files); });
     $h('#di-files').addEventListener('click', e => { const x = e.target.closest('[data-i]'); if (!x) return; files.splice(+x.dataset.i, 1); show(); });
     $h('#di-mode').addEventListener('click', e => { const b = e.target.closest('button[data-m]'); if (b && !b.disabled) setMode(b.dataset.m); });
+    $h('#di-img').addEventListener('click', e => { const b = e.target.closest('button[data-g]'); if (!b) return; imgAs = b.dataset.g; $$('#di-img button', host).forEach(x => x.classList.toggle('is-on', x === b)); });
     $h('#di-as').addEventListener('click', e => { const b = e.target.closest('button[data-a]'); if (!b) return; as = b.dataset.a; $$('#di-as button', host).forEach(x => x.classList.toggle('is-on', x === b)); });
     setMode(mode);
     $h('#di-go').addEventListener('click', async () => {
         const btn = $h('#di-go'); btn.disabled = true;
         try {
             const cols = Math.max(1, Math.min(20, +$h('#di-cols').value || 5)); dndCfg.cols = cols; dndCfgSave();
-            const opt = { mode, as, cols, title: $h('#di-title').value.trim() };
+            const opt = { mode, as, cols, imgAs, title: $h('#di-title').value.trim() };
             const res = await dndImportFiles(files, opt);
             const game = (res.items.length || res.games.length) ? await dndApplyImport(res, opt) : null;
             const box = $h('#di-result'); box.hidden = false;
@@ -552,7 +562,7 @@ function dndImportWidget(host, onDone) {
                 '<div class="di-fail">' + ic('info') + '<div><b>Ничего не импортировано</b></div></div>';
             if (res.notes.length) box.innerHTML += '<ul class="di-notes">' + res.notes.map(n => '<li>' + esc(n) + '</li>').join('') + '</ul>';
             if (game) {
-                box.insertAdjacentHTML('beforeend', '<div class="btn-group"><button type="button" class="btn btn-primary" data-go="dnd-builder">' + ic('dnd_board') + 'Открыть в «Конструкторе»</button><button type="button" class="btn" data-go="dnd-games">' + ic('casino') + 'К списку игр</button></div>');
+                box.insertAdjacentHTML('beforeend', '<div class="btn-group"><button type="button" class="btn btn-primary" data-go="dnd-builder">' + ic('dnd_board') + 'Открыть в «Карточках и Заметках»</button><button type="button" class="btn" data-go="dnd-games">' + ic('casino') + 'К списку игр</button></div>');
                 files = []; show(); renderDndGames(); if (typeof dndPagesReload === 'function') dndPagesReload(); if (onDone) onDone(game);
             }
         } catch (e) { console.error(e); toast('Не удалось выполнить импорт'); } finally { btn.disabled = false; }
@@ -579,6 +589,8 @@ function initDndSettings() {
         else { el.value = dndCfg[key]; el.addEventListener('change', () => { dndCfg[key] = num ? (+el.value || 100) : el.value; dndCfgSave(); dndSettingsApplied(); }); }
     };
     bind('dns-grid', 'grid'); bind('dns-snap', 'snap'); bind('dns-mini', 'minimap'); bind('dns-confirm', 'confirmDelete'); bind('dns-sys', 'system'); bind('dns-scale', 'textScale', true);
+    ['dns-autotags:autoTags', 'dns-autotagsadd:autoTagsAdd', 'dns-autodeck:autoDeck'].forEach(p => { const [id, key] = p.split(':'), el = $('#' + id); if (!el) return; el.checked = dndCfg[key] !== false; el.addEventListener('change', () => { dndCfg[key] = el.checked; dndCfgSave(); if (typeof dndPagesReload === 'function') dndPagesReload(); }); });
+    const exo = $('#dnd-export-open'); if (exo) exo.addEventListener('click', () => { const g = dndCur(); if (!g) { toast('Сначала выберите игру'); return; } dndExportSheet(g, 'board'); });
     const sel = $('#dns-sys'); sel.innerHTML = DND_SYSTEMS.map(s => '<option>' + esc(s) + '</option>').join(''); sel.value = dndCfg.system;
     const sc = $('#dns-scale'), lab = $('#dns-scale-val'); lab.textContent = dndCfg.textScale + ' %'; sc.addEventListener('input', () => { lab.textContent = sc.value + ' %'; });
     const stc = $('#dns-sticky'); stc.innerHTML = BD_COLORS.map(c => '<button type="button" class="bd-sw' + (c === dndCfg.stickyColor ? ' is-on' : '') + '" data-c="' + c + '" style="background:' + c + '" aria-label="Цвет стикера"></button>').join('');
@@ -616,6 +628,7 @@ function initDnd() {
     initDndGames(); initDndSettings();
     if (typeof initDndBoards === 'function') initDndBoards();
     if (typeof initDndChars === 'function') initDndChars();
+    if (typeof initDndCity === 'function') initDndCity();
     dndSettingsApplied();
     if (dndActiveId && !dndGame(dndActiveId)) dndActiveId = '';
     renderDndGames(); renderDndSettings(); dndRefreshHeaders();

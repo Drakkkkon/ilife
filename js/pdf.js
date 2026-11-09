@@ -11,7 +11,7 @@ class PdfWriter {
     constructor(opts) {
         opts = opts || {};
         this.W = 595.28; this.H = 841.89; this.mx = 44; this.mt = 50; this.mb = 54;
-        this.title = opts.title || 'iLife'; this.footer = opts.footer || 'iLife';
+        this.title = opts.title || 'iLife'; this.footer = opts.footer === false ? false : (opts.footer || 'iLife');   // footer:false — без колонтитула (листы карты в ДНД)
         this.fonts = { regular: window.PDF_FONTS.regular, bold: window.PDF_FONTS.bold };
         this.pages = []; this.images = []; this.y = 0;
         this.newPage();
@@ -145,7 +145,7 @@ class PdfWriter {
         for (const im of this.images) imgIds.push(add(cat(str('<< /Type /XObject /Subtype /Image /Width ' + im.w + ' /Height ' + im.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + im.bytes.length + ' >>\nstream\n'), im.bytes, str('\nendstream'))));
         // колонтитулы
         const total = this.pages.length;
-        this.pages.forEach((pg, i) => {
+        if (this.footer !== false) this.pages.forEach((pg, i) => {
             this.cur = pg;
             this.line(this.mx, this.H - 38, this.W - this.mx, this.H - 38, '#cac4d0', 0.5);
             this.textAt(this.footer, this.mx, this.H - 26, 8.5, { color: '#79747e' });

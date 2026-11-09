@@ -1,12 +1,15 @@
 'use strict';
 // =====================================================================================================
 // iLife 2.0.0 — ДОСКА (как в Miro): бесконечное поле, стикеры, карточки, текст, фигуры, рамки, картинки, рисунок, связи-стрелки.
-// Один движок DndBoard обслуживает две страницы: «Конструктор» (mode 'board') и «Сюжет» (mode 'plot': блоки со стрелками).
+// Один движок DndBoard обслуживает две страницы: «Карточки и Заметки» (mode 'board') и «Сюжет» (mode 'plot': блоки со стрелками).
 // Данные доски — массив items внутри игры (см. js/dnd.js). Все предметы — простые объекты:
 //   sticky { x,y,w,h,text,c,fs }  card { …,kind,title,text,tags[],imgId? }  text { x,y,w,text,fs,ink,al }
 //   shape { …,shape,text,fill,stroke,ink,fs }  frame { …,title,c }  image { …,imgId }  pen { x,y,w,h,ow,oh,pts[[x,y]],color,width }
 //   conn { from:{id,side}|{x,y}, to:{…}, style:'curve|straight|elbow', head:'end|both|none', dash, color, width, label }
-//   block { …,kind,title,text,intro[],tags[],chars[],status }   — только в «Сюжете»
+//   block { …,kind,title,text,intro[],tags[],chars[],status }   — только в «Сюжете»; с 2.1.0 ещё: desc, gm, noChars[], bldId (здание в «Вижуале»),
+//     fs/fst (размер текста и заголовка, %), bold, ital, al (выравнивание), c (цвет полоски), secret (для вида «Заметка»)
+//   card — с 2.1.0 тоже: secret (для вида «Заметка»), fs/fst/bold/ital/al
+//   emoji { …,cols,rows,em[],c[],pal[],b[],rev }  — картинка из эмодзи (клетки: c[i] — номер эмодзи в em[], b[i] — номер цвета фона в pal[])
 // Общие поля: id, t (вид), z (порядок), locked, g (группа).
 // Управление: колесо — масштаб, пробел/средняя кнопка/«Рука» — сдвиг, два пальца — масштаб и сдвиг на телефоне,
 // двойной щелчок — правка, Delete — удалить, Ctrl+Z / Ctrl+Shift+Z, Ctrl+C / V / D, Ctrl+A, стрелки — сдвиг.
@@ -22,7 +25,8 @@ function bdItem(t, p) {
         image: { w: 300, h: 200, imgId: '', name: '' },
         pen: { pts: [], w: 10, h: 10, ow: 10, oh: 10, color: '#1d1b20', width: 3 },
         conn: { from: null, to: null, style: 'curve', head: 'end', dash: false, color: '#5f5b66', width: 2, label: '' },
-        block: { w: 240, h: 150, kind: 'scene', title: '', text: '', intro: [], tags: [], chars: [], status: 'plan' }
+        block: { w: 240, h: 150, kind: 'scene', title: '', text: '', intro: [], tags: [], chars: [], status: 'plan' },
+        emoji: { w: 240, h: 160, cols: 10, rows: 7, em: [''], c: [], pal: [], b: [], rev: 1, name: '' }   // картинка из эмодзи (js/dnd-emoji.js)
     };
     return Object.assign({ id: uid('b'), t, x: 0, y: 0, z: 0 }, JSON.parse(JSON.stringify(defs[t] || {})), p || {});
 }
@@ -171,7 +175,10 @@ class DndBoard {
     paint(it) {
         if (it.t === 'conn') { this.drawConn(it); return; }
         let el = this.els.get(it.id) || this.mkEl(it);
-        el.className = 'bi bi-' + it.t + (this.sel.has(it.id) ? ' is-sel' : '') + (it.locked ? ' is-locked' : '') + (it.g ? ' is-grp' : '');
+        const isCB = it.t === 'card' || it.t === 'block';
+        el.className = 'bi bi-' + it.t + (this.sel.has(it.id) ? ' is-sel' : '') + (it.locked ? ' is-locked' : '') + (it.g ? ' is-grp' : '') +
+            (isCB && it.secret && it.kind === 'note' ? ' is-secret' : '') + (isCB && it.bold === false ? ' tb-n' : '') + (isCB && it.ital ? ' tx-i' : '');
+        if (isCB) { el.style.setProperty('--bk-fs', String((it.fs || 100) / 100)); el.style.setProperty('--bk-ft', String((it.fst || it.fs || 100) / 100)); el.style.textAlign = it.al || ''; }
         this.place(it, el);
         const dots = this.dotsHtml(), lock = it.locked ? '<i class="bi-lock">' + ic('lock') + '</i>' : '';
         const txt = (cls, text, style) => '<div class="' + cls + '"' + (style ? ' style="' + style + '"' : '') + '>' + esc(text || '') + '</div>';
@@ -207,20 +214,31 @@ class DndBoard {
                 el.innerHTML = '<svg viewBox="0 0 ' + (it.ow || 1) + ' ' + (it.oh || 1) + '" width="' + it.w + '" height="' + it.h + '" preserveAspectRatio="none" style="overflow:visible"><polyline points="' + pts + '" fill="none" stroke="' + esc(it.color) + '" stroke-width="' + (it.width || 3) + '" stroke-linecap="round" stroke-linejoin="round"/></svg>' + lock; break;
             }
             case 'card': {
-                const k = bdKind(BD_CARD_KINDS, it.kind), col = it.c || k.c;
-                el.innerHTML = '<div class="bc-head" style="background:' + col + '">' + ic(k.i) + '<span>' + esc(k.n) + '</span></div>' + (it.imgId ? '<div class="bc-img"></div>' : '') +
-                    '<div class="bc-body"><div class="bc-title' + (it.title ? '' : ' is-ph') + '">' + esc(it.title || 'Без названия') + '</div>' + (it.text ? '<div class="bc-text">' + esc(it.text) + '</div>' : '') +
-                    ((it.tags || []).length ? '<div class="bc-tags">' + it.tags.map(t => '<span>#' + esc(t) + '</span>').join('') + '</div>' : '') + '</div>' + dots + lock;
-                if (it.imgId) this.loadBg(el.querySelector('.bc-img'), it.imgId); break;
+                const k = bdKind(BD_CARD_KINDS, it.kind), col = it.c || k.c, sec = it.secret && it.kind === 'note';
+                const ch = it.kind === 'char' && it.charId && this.game ? (this.game.chars || []).find(c => c.id === it.charId) : null;   // герой со страницы «Персонажи»: его фото 3:4
+                const ph = ch ? dndPhotoHtml(ch, 'bc-ph') : '';
+                el.innerHTML = '<div class="bc-head" style="background:' + col + '">' + ic(sec ? 'visibility_off' : k.i) + '<span>' + esc(k.n) + (sec ? ' · секрет' : '') + '</span></div>' + (it.imgId ? '<div class="bc-img"></div>' : '') +
+                    '<div class="bc-body' + (ph ? ' has-ph' : '') + '">' + ph + '<div class="bc-title' + (it.title ? '' : ' is-ph') + '">' + esc(it.title || 'Без названия') + '</div>' + (it.text ? '<div class="bc-text">' + esc(it.text) + '</div>' : '') +
+                    ((it.tags || []).length ? '<div class="bc-tags">' + dndTagsHtml(this.game, it.tags) + '</div>' : '') + '</div>' + dots + lock;
+                if (it.imgId) this.loadBg(el.querySelector('.bc-img'), it.imgId);
+                if (ph) dndPaintPhotos(el);
+                break;
             }
             case 'block': {
-                const k = bdKind(BD_PLOT_KINDS, it.kind), n = (it.intro || []).length, st = BD_PLOT_STATUS.find(s => s.k === it.status);
-                const chars = (this.game && this.game.chars || []).filter(c => (it.chars || []).includes(c.id));
+                const k = bdKind(BD_PLOT_KINDS, it.kind), n = (it.intro || []).length, st = BD_PLOT_STATUS.find(s => s.k === it.status), sec = it.secret && it.kind === 'note';
+                const chars = dndBlockChars(this.game, it);   // выбранные вручную + упомянутые в тексте по имени
+                const bld = it.bldId && this.game && this.game.city ? (this.game.city.items || []).find(b => b.id === it.bldId && b.t === 'b') : null;
                 el.classList.add('st-' + (it.status || 'plan'));
-                el.innerHTML = '<div class="bc-head" style="background:' + k.c + '">' + ic(k.i) + '<span>' + esc(k.n) + '</span>' + (st && it.status !== 'plan' ? '<em class="bk-st">' + esc(st.n) + '</em>' : '') + '</div>' +
+                el.innerHTML = '<div class="bc-head" style="background:' + (it.c || k.c) + '">' + ic(sec ? 'visibility_off' : k.i) + '<span>' + esc(k.n) + (sec ? ' · секрет' : '') + '</span>' + (st && it.status !== 'plan' ? '<em class="bk-st">' + esc(st.n) + '</em>' : '') + '</div>' +
                     '<div class="bc-body"><div class="bc-title' + (it.title ? '' : ' is-ph') + '">' + esc(it.title || 'Без названия') + '</div>' + (it.text ? '<div class="bc-text">' + esc(it.text) + '</div>' : '') + '</div>' +
-                    '<div class="bk-foot">' + (n ? '<span class="bk-chip">' + ic('notes') + n + '</span>' : '') + chars.slice(0, 4).map(c => '<span class="bk-av" title="' + esc(c.name) + '">' + esc((c.name || '?').trim().charAt(0).toUpperCase()) + '</span>').join('') + (chars.length > 4 ? '<span class="bk-av">+' + (chars.length - 4) + '</span>' : '') + ((it.tags || []).length ? '<span class="bk-tags">' + it.tags.map(t => '#' + esc(t)).join(' ') + '</span>' : '') + '</div>' + dots + lock;
+                    '<div class="bk-foot' + (chars.length ? ' has-deck' : '') + '">' + (n ? '<span class="bk-chip">' + ic('notes') + n + '</span>' : '') + (bld ? '<span class="bk-chip bk-bld" title="Здание в «Вижуале»">' + ic('map') + esc(bld.n || 'Здание') + '</span>' : '') + dndDeckHtml(chars) +
+                    ((it.tags || []).length ? '<span class="bk-tags">' + dndTagsHtml(this.game, it.tags) + '</span>' : '') + '</div>' + dots + lock;
+                if (chars.length) dndPaintPhotos(el);
                 break;
+            }
+            case 'emoji': {
+                el.innerHTML = '<div class="be-wrap"></div>' + dots + lock;
+                el.firstChild.appendChild(dndEmojiCanvas(it)); break;
             }
         }
     }
@@ -421,7 +439,7 @@ class DndBoard {
     // ---------- Правка текста на месте ----------
     startEdit(it, selectAll) {
         if (!it || it.locked) return;
-        if (it.t === 'card' || it.t === 'block') { if (this.o.onEdit) this.o.onEdit(it, this); return; }
+        if (it.t === 'card' || it.t === 'block' || it.t === 'emoji') { if (this.o.onEdit) this.o.onEdit(it, this); return; }
         if (it.t === 'conn') { this.editLabel(it); return; }
         const el = this.els.get(it.id); if (!el) return;
         const t = it.t === 'frame' ? el.querySelector('.bf-title') : el.querySelector('.bi-txt'); if (!t) return;
@@ -501,6 +519,8 @@ class DndBoard {
         }
         if (tool !== 'select') { this.d = { type: 'create', tool, arg: this.toolArg, sx: e.clientX, sy: e.clientY, p0: p, moved: false }; return; }
         // --- режим «Выбор» ---
+        if (this._deckTimer) { clearTimeout(this._deckTimer); this._deckTimer = 0; }   // второе касание подряд — это двойной щелчок (правка), а не колода
+        const dk = tg.closest('.bk-deck'); this._deckTap = dk && dk.closest('.bi') ? { id: dk.closest('.bi').dataset.id, x: e.clientX, y: e.clientY } : null;
         const hnd = tg.closest('.bd-h'); if (hnd) { this.startResize(hnd.dataset.d, e); return; }
         const ep = tg.closest('.bd-ep'); if (ep) { const c = this.byId(ep.parentNode.dataset.id); if (c && !c.locked) { this.d = { type: 'reconn', it: c, end: ep.dataset.end }; return; } }
         const dot = tg.closest('.bi-dot');
@@ -626,9 +646,9 @@ class DndBoard {
         const minW = it.t === 'text' ? 60 : it.t === 'sticky' ? 70 : 50, minH = it.t === 'sticky' ? 70 : 36;
         if (dir.includes('e')) w = Math.max(minW, b.w + dx); if (dir.includes('s')) h = Math.max(minH, b.h + dy);
         if (dir.includes('w')) { w = Math.max(minW, b.w - dx); x = b.x + b.w - w; } if (dir.includes('n')) { h = Math.max(minH, b.h - dy); y = b.y + b.h - h; }
-        if ((it.t === 'image' || e.shiftKey) && dir.length === 2) {
+        if ((it.t === 'image' || it.t === 'emoji' || e.shiftKey) && dir.length === 2) {
             const nh = w / d.ratio; if (dir.includes('n')) y = b.y + b.h - nh; h = nh;
-        } else if (it.t === 'image' && dir.length === 1) { if (dir === 'e' || dir === 'w') h = w / d.ratio; else w = h * d.ratio; }
+        } else if ((it.t === 'image' || it.t === 'emoji') && dir.length === 1) { if (dir === 'e' || dir === 'w') h = w / d.ratio; else w = h * d.ratio; }
         if (this.snap) { w = Math.max(minW, Math.round(w / 24) * 24); if (it.t !== 'text') h = Math.max(minH, Math.round(h / 24) * 24); }
         it.x = Math.round(x); it.y = Math.round(y); it.w = Math.round(w); if (it.t !== 'text') it.h = Math.round(h);
         this.paint(it); this.redrawConns(new Set([it.id])); this.placeHandles(); this.drawMini();
@@ -637,6 +657,8 @@ class DndBoard {
         const had = this.pointers.has(e.pointerId); this.pointers.delete(e.pointerId);
         try { this.v.releasePointerCapture(e.pointerId); } catch (er) {}
         const d = this.d; if (!had) return;
+        const dt = this._deckTap; this._deckTap = null;   // короткое нажатие на стопку фото героев на блоке → колода героев (js/dnd-deck.js)
+        if (dt && Math.hypot(e.clientX - dt.x, e.clientY - dt.y) < 6 && !(d && d.moved)) this._deckTimer = setTimeout(() => { this._deckTimer = 0; const bi = this.byId(dt.id); if (bi && this.o.onDeck) this.o.onDeck(bi, this); }, 280);
         if (d && d.type === 'pinch') { if (this.pointers.size < 2) { this.d = null; this.applyView(); } return; }
         if (!d) return; this.d = null; this.v.classList.remove('is-panning', 'is-dragging');
         const p = this.toWorld(e.clientX, e.clientY);
@@ -743,6 +765,7 @@ class DndBoard {
         const files = Array.from(cd.files || []).filter(f => /^image\//.test(f.type));
         if (files.length) { e.preventDefault(); this.dropFiles(files, this.viewCenter()); return; }
         const text = cd.getData('text/plain');
+        if (text && text.trim() && !bdClip && typeof dndEmojiFromPaste === 'function' && dndEmojiFromPaste(this, text)) { e.preventDefault(); return; }   // строки из эмодзи → картинка
         if (text && text.trim() && !bdClip) { e.preventDefault(); const c = this.viewCenter(); this.addItem(bdItem('sticky', { x: c.x - 100, y: c.y - 100, text: text.trim().slice(0, 1200) })); return; }
         if (bdClip) { e.preventDefault(); const r = this.v.getBoundingClientRect(); this.paste(null); return; }
         if (text && text.trim()) { e.preventDefault(); const c = this.viewCenter(); this.addItem(bdItem('sticky', { x: c.x - 100, y: c.y - 100, text: text.trim().slice(0, 1200) })); }

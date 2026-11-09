@@ -118,9 +118,9 @@ function dcEditorHtml(g, c) {
         '<div class="dc-edit" data-cid="' + esc(c.id) + '">' +
         '<div class="dc-bar"><button type="button" class="btn" data-dc="back"><i data-i="arrow_back"></i>К списку</button><span class="dc-saved" id="dc-saved">Сохранено</span>' +
         '<button type="button" class="icon-btn" data-dc="dup" title="Дублировать" aria-label="Дублировать">' + ic('content_copy') + '</button><button type="button" class="icon-btn" data-dc="del" title="Удалить" aria-label="Удалить">' + ic('delete') + '</button></div>' +
-        '<div class="dc-hero"><div class="dc-portrait" style="--h:' + (c.hue || 265) + '"' + (c.portraitId ? ' data-img="' + esc(c.portraitId) + '"' : '') + ' data-dc="portrait" title="Сменить портрет"><span>' + dcInitial(c) + '</span><i class="dc-cam">' + ic('photo_camera') + '</i></div>' +
+        '<div class="dc-hero"><div class="dc-portrait" style="--h:' + (c.hue || 265) + '"' + (c.portraitId ? ' data-img="' + esc(c.portraitId) + '"' : '') + ' data-dc="portrait" title="Сменить фото"><span>' + dcInitial(c) + '</span><i class="dc-cam">' + ic('photo_camera') + '</i></div>' +
         '<div class="dc-hero-t"><h2 id="dc-title">' + esc(c.name || 'Без имени') + '</h2><p class="hint" id="dc-sub">' + esc([c.race, c.cls, dcType(c.type).n].filter(Boolean).join(' · ')) + '</p>' +
-        '<div class="btn-group"><button type="button" class="btn" data-dc="portrait"><i data-i="add_photo_alternate"></i>' + (c.portraitId ? 'Сменить портрет' : 'Загрузить портрет') + '</button>' + (c.portraitId ? '<button type="button" class="btn btn-danger" data-dc="portraitx"><i data-i="delete"></i>Убрать</button>' : '') + '</div></div></div>' +
+        '<div class="btn-group"><button type="button" class="btn" data-dc="portrait"><i data-i="add_photo_alternate"></i>' + (c.portraitId ? 'Сменить фото' : 'Загрузить фото 3:4') + '</button>' + (c.portraitId ? '<button type="button" class="btn" data-dc="portraitcrop"><i data-i="crop"></i>Кадр 3:4</button><button type="button" class="btn btn-danger" data-dc="portraitx"><i data-i="delete"></i>Убрать</button>' : '') + '</div></div></div>' +
         dcSec('basic', c, '<div class="dc-fields">' + dcField('Имя', 'name', c, { wide: true, ph: 'Как зовут' }) + dcField('Вид', 'type', c, { select: DC_TYPES }) + dcField('Игрок', 'player', c, { ph: 'Кто играет' }) + dcField('Раса', 'race', c) + dcField('Класс', 'cls', c) + dcField('Подкласс', 'subclass', c) +
             dcField('Уровень', 'level', c, { num: true }) + dcField('Предыстория', 'bg', c, { ph: 'Солдат, мудрец…' }) + dcField('Мировоззрение', 'align', c, { select: DC_ALIGN }) + dcField('Возраст', 'age', c) + dcField('Пол / местоимения', 'gender', c) + dcField('Роль в истории', 'role', c, { wide: true, ph: 'Союзник героев, соперник, наниматель…' }) + '</div>') +
         dcSec('stats', c, stats + '<p class="hint dc-prof" id="dc-prof">Бонус мастерства: +' + dcProf(c.level) + '</p><div class="dc-fields">' + dcField('Хиты', 'hp', c, { ph: '27' }) + dcField('Класс доспеха', 'ac', c, { ph: '15' }) + dcField('Скорость', 'speed', c, { ph: '30 фт.' }) + dcField('Языки', 'lang', c, { wide: true, ph: 'Общий, эльфийский' }) + '</div>') +
@@ -150,7 +150,13 @@ async function dcAddImages(files, kind, ref) {
     let n = 0;
     for (const f of files) {
         try {
-            const r = await dndAddImage(g, f);
+            let file = f;
+            if (kind === 'portrait') {   // фото героя — всегда 3:4: предлагаем подобрать кадр
+                const cut = await dndCropSheet(f, { title: 'Фото героя 3:4' });
+                if (!cut) continue;
+                file = cut instanceof File ? cut : new File([cut], (f.name || 'portrait').replace(/\.[^.]+$/, '') + '.jpg', { type: cut.type || 'image/jpeg' });
+            }
+            const r = await dndAddImage(g, file);
             if (kind === 'portrait') { if (c.portraitId) dndDropImage(g, c.portraitId); c.portraitId = r.id; }
             else if (kind === 'lookimg') { const l = c.looks.find(x => x.id === ref); if (l) { if (l.imgId) dndDropImage(g, l.imgId); l.imgId = r.id; } }
             else if (kind === 'lookpics') c.looks.push({ id: uid('lk'), title: f.name.replace(/\.[^.]+$/, ''), desc: '', imgId: r.id });
@@ -159,6 +165,14 @@ async function dcAddImages(files, kind, ref) {
         } catch (e) { console.error(e); toast('Не удалось добавить «' + f.name + '»'); }
     }
     if (n) { dndTouch(g); const keep = ['dc-sec-styles', 'dc-sec-gallery']; renderDndChars(); }
+}
+// Подобрать кадр 3:4 из уже загруженной картинки (образ → фото героя, либо перекадрировать само фото)
+async function dcCropFrom(g, c, srcId, asNew) {
+    const rec = await BlobDB.get(srcId); if (!rec || !rec.blob) { toast('Картинка не найдена на этом устройстве'); return; }
+    const cut = await dndCropSheet(rec.blob, { title: 'Фото героя 3:4' }); if (!cut) return;
+    const file = new File([cut], (c.name || 'portrait') + '.jpg', { type: cut.type || 'image/jpeg' });
+    try { const r = await dndAddImage(g, file); if (c.portraitId) dndDropImage(g, c.portraitId); c.portraitId = r.id; dndTouch(g); renderDndChars(); toast(asNew ? 'Фото героя обновлено' : 'Кадр сохранён'); }
+    catch (e) { console.error(e); toast('Не удалось сохранить кадр'); }
 }
 function initDndChars() {
     const host = $('#dnd-chars-body');
@@ -189,7 +203,8 @@ function initDndChars() {
         else if (a === 'lookpics') pickImages('lookpics', null, true);
         else if (a === 'lookimg') pickImages('lookimg', b.closest('.dc-look').dataset.id, false);
         else if (a === 'lookview' || a === 'galview') { const id = a === 'galview' ? b.closest('.dc-gi').dataset.id : b.closest('.dc-look').dataset.id; const it = (a === 'galview' ? c.gallery : c.looks).find(x => x.id === id); if (it) dndViewImage({ imgId: it.imgId, name: it.title || it.cap || c.name }); }
-        else if (a === 'lookport') { const l = c.looks.find(x => x.id === b.closest('.dc-look').dataset.id); if (l && l.imgId) { dndCloneImage(g, l.imgId).then(nid => { if (!nid) return; if (c.portraitId) dndDropImage(g, c.portraitId); c.portraitId = nid; dndTouch(g); renderDndChars(); toast('Портрет обновлён'); }); } }
+        else if (a === 'lookport') { const l = c.looks.find(x => x.id === b.closest('.dc-look').dataset.id); if (l && l.imgId) dcCropFrom(g, c, l.imgId, true); }
+        else if (a === 'portraitcrop') { if (c.portraitId) dcCropFrom(g, c, c.portraitId, false); }
         else if (a === 'lookdel') { const i = c.looks.findIndex(x => x.id === b.closest('.dc-look').dataset.id); if (i >= 0) { dndDropImage(g, c.looks[i].imgId); c.looks.splice(i, 1); dndTouch(g); renderDndChars(); } }
         else if (a === 'galadd') pickImages('gallery', null, true);
         else if (a === 'galdel') { const i = c.gallery.findIndex(x => x.id === b.closest('.dc-gi').dataset.id); if (i >= 0) { dndDropImage(g, c.gallery[i].imgId); c.gallery.splice(i, 1); dndTouch(g); renderDndChars(); } }

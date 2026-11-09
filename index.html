@@ -43,7 +43,7 @@
             <!-- Логотип и версия: нажатие на версию открывает «Настройки → О приложении → Журнал изменений» -->
             <div class="splash-brand">
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.0.0</span><i data-i="chevron_right"></i></button>
+                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.1.0</span><i data-i="chevron_right"></i></button>
             </div>
             <h1 id="splash-greeting" style="font-size:24px;font-weight:400">Здравствуйте!</h1>
             <div class="splash-center">
@@ -66,7 +66,7 @@
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                 <div class="brand-txt">
                     <h2>iLife</h2>
-                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.0.0</span><i data-i="chevron_right"></i></button>
+                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.1.0</span><i data-i="chevron_right"></i></button>
                 </div>
             </div>
             <nav class="sidebar-nav main-nav">
@@ -84,7 +84,7 @@
                 <button type="button" class="nav-back" data-dnd-back><i data-i="arrow_back"></i><span>Назад</span></button>
                 <div class="nav-title"><i data-i="d20"></i>ДНД</div>
                 <button type="button" data-tab="dnd-games"><i data-i="casino"></i><span>Игры</span></button>
-                <button type="button" data-tab="dnd-builder"><i data-i="dnd_board"></i><span>Конструктор</span></button>
+                <button type="button" data-tab="dnd-builder"><i data-i="dnd_board"></i><span>Карточки и Заметки</span></button>
                 <button type="button" data-tab="dnd-chars"><i data-i="groups"></i><span>Персонажи</span></button>
                 <button type="button" data-tab="dnd-visual"><i data-i="cube3d"></i><span>Вижуал</span></button>
                 <button type="button" data-tab="dnd-plot"><i data-i="account_tree"></i><span>Сюжет</span></button>
@@ -103,7 +103,7 @@
                     <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                     <div class="brand-txt">
                         <b>iLife</b>
-                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.0.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
+                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.1.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
                     </div>
                 </div>
                 <!-- Поиск — в самом верху: по словам, #хештегам и датам -->
@@ -534,7 +534,7 @@
             <!-- ===================== ДНД: КОНСТРУКТОР (доска как в Miro, js/dnd-board.js) ===================== -->
             <section id="dnd-builder" class="tab tab-canvas" data-tab="dnd-builder">
                 <header class="page-head page-head-sm">
-                    <div class="page-head-t"><div class="dnd-kicker"><i data-i="d20"></i>ДНД</div><h1 class="page-title">Конструктор</h1></div>
+                    <div class="page-head-t"><div class="dnd-kicker"><i data-i="d20"></i>ДНД</div><h1 class="page-title">Карточки и Заметки</h1></div>
                 </header>
                 <div id="dnd-builder-host" class="bd-host"></div>
             </section>
@@ -568,21 +568,12 @@
                 <div id="dnd-chars-body"></div>
             </section>
 
-            <!-- ===================== ДНД: ВИЖУАЛ (пока заглушка) ===================== -->
-            <section id="dnd-visual" class="tab" data-tab="dnd-visual">
-                <header class="page-head">
+            <!-- ===================== ДНД: ВИЖУАЛ (конструктор города, вид сверху, js/dnd-city.js) ===================== -->
+            <section id="dnd-visual" class="tab tab-canvas" data-tab="dnd-visual">
+                <header class="page-head page-head-sm">
                     <div class="page-head-t"><div class="dnd-kicker"><i data-i="d20"></i>ДНД</div><h1 class="page-title">Вижуал</h1></div>
                 </header>
-                <div class="dv-stage">
-                    <div class="dv-cube" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-                    <h2>Страничка откроется скоро</h2>
-                    <p>Здесь будет объёмное 3D-пространство: можно будет воочию увидеть, как проходит игра, куда двигаются персонажи и что происходит на карте.</p>
-                    <ul class="dv-soon">
-                        <li><i data-i="map"></i>Карта кампании в 3D</li>
-                        <li><i data-i="groups"></i>Фигурки персонажей и их путь</li>
-                        <li><i data-i="account_tree"></i>Ход сюжета на карте</li>
-                    </ul>
-                </div>
+                <div id="dnd-visual-host" class="cy-host"></div>
             </section>
 
             <!-- ===================== ДНД: СЮЖЕТ (блоки со стрелками, тот же движок доски) ===================== -->
@@ -625,14 +616,35 @@
                     </div>
                 </div>
 
+                <div class="card" id="dnd-tags-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="tag"></i></span><span class="ttl">Хештеги, имена и колода героев</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <div class="switch-row"><div class="tx"><b>Подсказывать хештеги</b><span class="sub">В окне правки карточки и блока iLife находит в тексте имена героев со страницы «Персонажи», места и сюжетные повороты (засада, предательство, тайна…) и предлагает их хештегами</span></div><input type="checkbox" class="switch" id="dns-autotags" aria-label="Подсказывать хештеги"></div>
+                        <div class="switch-row"><div class="tx"><b>Добавлять новые сами</b><span class="sub">Слова, которые вы печатаете сейчас, превращаются в хештеги без нажатия. То, что уже было в тексте, само не добавляется</span></div><input type="checkbox" class="switch" id="dns-autotagsadd" aria-label="Добавлять хештеги сами"></div>
+                        <div class="switch-row"><div class="tx"><b>Колода героев на блоках сюжета</b><span class="sub">Герои, чьи имена встречаются в тексте блока, появляются стопкой фото 3:4 на самом блоке. Нажатие на стопку открывает рассказ о герое</span></div><input type="checkbox" class="switch" id="dns-autodeck" aria-label="Колода героев на блоках"></div>
+                    </div>
+                </div>
+
+                <div class="card" id="dnd-export-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="picture_as_pdf"></i></span><span class="ttl">Вывод игры: Miro, PDF, текст</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body">
+                        <p class="hint" style="margin-bottom:0.75rem">Пакет для Miro (картинки, таблица, JSON), PDF для склейки большой карты из листов, PDF со списком всех событий и стрелками, обычный текст и PNG. Работает с выбранной игрой.</p>
+                        <button type="button" class="btn btn-primary btn-wide" id="dnd-export-open"><i data-i="download"></i>Открыть «Вывод игры»</button>
+                        <p class="instr-row"><button type="button" class="linkbtn instr-link" data-instr="instr-miro-export"><i data-i="help"></i>Как вывести игру в Miro, PDF и текст — инструкция</button></p>
+                    </div>
+                </div>
+
                 <!-- Импорт из Miro: ссылка на инструкцию ведёт в блок «Сайты и инструкции» внизу «Настроек» -->
                 <div class="card" id="dnd-import-card">
                     <h3 class="card-title"><span class="ico"><i data-i="file_upload"></i></span><span class="ttl">Импорт из Miro и файлов</span>
                         <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
                     <div class="card-body">
-                        <p class="hint" style="margin-bottom:0.75rem">Таблицы CSV и данные JSON из Miro, картинки доски (JPG, PNG, SVG), обычный текст и файлы игр iLife превращаются в карточки на доске «Конструктора».</p>
+                        <p class="hint" style="margin-bottom:0.75rem">Таблицы CSV и данные JSON из Miro, картинки доски (JPG, PNG, SVG), обычный текст и файлы игр iLife превращаются в карточки на доске «Карточек и Заметок».</p>
                         <div id="dnd-import-host"></div>
                         <p class="instr-row"><button type="button" class="linkbtn instr-link" data-instr="instr-miro"><i data-i="help"></i>Как выгрузить доску из Miro — инструкция</button></p>
+                        <p class="instr-row"><button type="button" class="linkbtn instr-link" data-instr="instr-emoji"><i data-i="help"></i>Картинка из эмодзи (скриншот Miro → ДНД) — инструкция</button></p>
                     </div>
                 </div>
 
@@ -885,13 +897,27 @@
                     <div class="card-body">
                         <div class="about-head">
                             <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">2.0.0</span></div></div>
+                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">2.1.0</span></div></div>
                         </div>
                         <p style="margin-bottom:8px">Личное приложение для себя. Дизайн и логика — из My Money 4.8.1.</p>
                         <p class="hint" style="margin-bottom:16px"><b>Не для коммерческого использования:</b> приложение создано только для личных, некоммерческих целей — его нельзя продавать, сдавать в аренду или использовать в бизнесе. Логотип (папка «iLife ’09») — сторонняя картинка, права на неё принадлежат её владельцам; он используется здесь только в личных целях.</p>
 
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
+                        <div class="cl-version">
+                            <h4>2.1.0 <span class="cl-tag">ДНД: карточки, город, эмодзи-картинки, вывод игры</span></h4>
+                            <ul>
+                                <li>Страница «Конструктор» переименована в <b>«Карточки и Заметки»</b> — всё остальное на ней осталось прежним.</li>
+                                <li><b>Картинка из эмодзи.</b> Скопируйте или загрузите рисунок из эмодзи (например, со скриншота Miro) — iLife найдёт сетку, узнает каждый значок и соберёт такую же картинку на доске. Её можно править: кисть, ластик, заливка, пипетка, замена одного эмодзи на другой, размер сетки, фон. Обычную картинку можно превратить в эмодзи-мозаику.</li>
+                                <li><b>Сюжет и карточки:</b> размер шрифта (название и текст отдельно), жирный, курсив, выравнивание, быстрые кнопки «A−/A+» над выбранной карточкой.</li>
+                                <li><b>Хештеги.</b> Имена героев берутся со страницы «Персонажи» сами; тексты проверяются на места и особые повороты сюжета; подсказки-метки выбираются одним нажатием (#персонаж, #локация, #поворот).</li>
+                                <li><b>Секрет.</b> У карточки вида «Заметка» появилась кнопка «Секрет»: заметка получает мягкую полоску и скрывается в окне чтения героя.</li>
+                                <li><b>Фото героев 3:4.</b> Портреты персонажей кадрируются в формат 3:4. Герои, упомянутые в карточке сюжета, складываются в «колоду» из фото; нажмите — откроется рассказ о герое.</li>
+                                <li><b>Вижуал: простой город.</b> Вид сверху, 2D: рисуйте землю, дороги и воду, ставьте кубические дома (размер, этаж, цвет, заметка), добавляйте героев и украшения. К дому привязывается карточка сюжета; нажатие на дом показывает карточки-подсказки.</li>
+                                <li><b>Вывод игры:</b> пакет для Miro (картинки, CSV, JSON, наклейки, полная копия игры), PDF-карта для склейки в одно большое поле (выбор, как нарезать), PDF-список всех событий со стрелками и обычный текст.</li>
+                                <li>Версия 2.1.0 нужна на всех устройствах, где открывается «ДНД»: новые поля игр на старых версиях не отображаются.</li>
+                            </ul>
+                        </div>
                         <div class="cl-version">
                             <h4>2.0.0 <span class="cl-tag">Новый раздел «ДНД»</span></h4>
                             <ul>
@@ -1243,7 +1269,7 @@
                                 <p class="xb-h">Способ 2. Картинка доски</p>
                                 <ol class="steps">
                                     <li>В Miro нажмите три точки <b>«⋯»</b> в левом верхнем углу → <b>Board</b> → <b>Save as image</b>. Выберите область доски и размер (Small, Medium или Large — это JPG; Vector — векторный файл, берите SVG) и нажмите <b>Export</b>.</li>
-                                    <li>Импортируйте файл в iLife так же, как в способе 1: картинка ляжет на доску «Конструктора» одним предметом, который можно увеличить и обвести карточками. На бесплатном тарифе Miro картинка получается в невысоком разрешении.</li>
+                                    <li>Импортируйте файл в iLife так же, как в способе 1: картинка ляжет на доску «Карточек и Заметок» одним предметом, который можно увеличить и обвести карточками. На бесплатном тарифе Miro картинка получается в невысоком разрешении.</li>
                                 </ol>
                                 <p class="hint">Файл PDF iLife не открывает: у Miro есть и «Save as PDF», но для iLife сохраняйте доску картинкой (JPG, PNG или SVG).</p>
 
@@ -1269,6 +1295,66 @@
                                 </ol>
                             </div>
                         </details>
+                        <details class="fold" id="instr-miro-export">
+                            <summary><i data-i="help"></i>Как вывести игру в Miro, PDF и текст — пошагово</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-tabcard="dnd-settings|dnd-export-card"><i data-i="arrow_upward"></i>К блоку «Вывод игры» в настройках ДНД</button></p>
+                                <p class="hint">«Вывод игры» открывается из настроек ДНД, из меню «⋯» на досках («Экспорт игры…») и кнопкой с PDF на странице «Вижуал». Всё делается с игрой, которая сейчас выбрана.</p>
+
+                                <p class="xb-h">Способ 1. Пакет для Miro</p>
+                                <ol class="steps">
+                                    <li>Откройте «Вывод игры» и отметьте, что включить: «Карточки и Заметки», «Сюжет», «Герои», «Город». Если файл пойдёт игрокам, не включайте переключатель «Включать скрытое для ведущего».</li>
+                                    <li>Нажмите <b>«Собрать пакет для Miro»</b>. Получится один ZIP-файл — распакуйте его.</li>
+                                    <li>Картинки <b>kartochki_i_zametki.png</b>, <b>syuzhet.png</b>, <b>gorod.png</b> просто перетащите на доску Miro — всё появится как есть.</li>
+                                    <li>Чтобы получить отдельные стикеры: откройте <b>miro_cards.csv</b> в Google Таблицах (Файл → Импорт) или в Excel, выделите столбец «Название», скопируйте и вставьте на доску Miro (<b>Ctrl+V</b>) — каждая ячейка станет стикером.</li>
+                                    <li>Для карточек с описанием в Miro добавьте из «Apps» любое приложение для импорта таблиц (CSV / Excel) и загрузите <b>miro_cards.csv</b>: в нём название, описание, метки, состояние, место и герои.</li>
+                                </ol>
+                                <p class="hint">Miro не умеет открывать целую доску из чужого файла, поэтому пакет — набор способов, а не одна кнопка. Файл <b>miro_board.json</b> — для программистов (формат Miro REST API), его iLife умеет открывать и обратно. Файл <b>ilife_igra.json</b> — полная копия игры для восстановления в iLife.</p>
+
+                                <p class="xb-h">Способ 2. PDF для склейки большой карты</p>
+                                <ol class="steps">
+                                    <li>В «Вывод игры» → «PDF: склеить большую карту» выберите, что печатать: «Карточки и Заметки», «Сюжет» или «Вижуал (город)».</li>
+                                    <li>Выберите бумагу (A4, A3, Letter), положение листа и <b>число листов по ширине</b> — чем больше, тем крупнее итоговая карта. Строка под настройками сразу пишет, сколько листов выйдет и какого размера будет карта.</li>
+                                    <li>«Нахлёст» — запас рисунка по краям для склейки (10 мм удобно): рисунок на соседних листах повторяется, склеивать нужно по красной пунктирной линии. «Нет, встык» — края листов стыкуются без запаса.</li>
+                                    <li>Нажмите <b>«Создать PDF для склейки»</b>. Первая страница — схема склейки, дальше листы с буквами и цифрами (A1, B1, A2…).</li>
+                                    <li>Печатайте в масштабе <b>100%</b> («Реальный размер», без «вписать в страницу»), обрезайте по угловым меткам и склеивайте: сначала строки, потом строки между собой. A1 — левый верхний угол.</li>
+                                </ol>
+
+                                <p class="xb-h">Способ 3. PDF со списком событий</p>
+                                <ol class="steps">
+                                    <li>«Вывод игры» → «PDF: список всех событий». Блоки сюжета выстраиваются по стрелкам со страницы «Сюжет»: у каждого видно, откуда в него пришли и куда можно пойти дальше.</li>
+                                    <li>«Подробности и вводные» добавляют полное описание и вводные; заметки ведущего появятся, только если включён переключатель «Включать скрытое для ведущего».</li>
+                                </ol>
+
+                                <p class="xb-h">Способ 4. Текст и картинки</p>
+                                <ol class="steps">
+                                    <li><b>Текст (.txt)</b> — вся игра обычным текстом: герои, карточки по видам, сюжет по порядку со стрелками, здания города. «Скопировать текст» кладёт его в буфер обмена.</li>
+                                    <li><b>PNG доски, сюжета и города</b> — каждая страница одной картинкой.</li>
+                                </ol>
+
+                                <p class="xb-h">Если не получилось</p>
+                                <ol class="steps">
+                                    <li><b>Файл не сохраняется на телефоне.</b> В приложении нажмите «Поделиться» в появившемся окне или откройте iLife в браузере Chrome.</li>
+                                    <li><b>Листов получилось слишком много.</b> Уменьшите «Листов по ширине» или выберите бумагу побольше (A3).</li>
+                                    <li><b>Пустой PDF со списком событий.</b> На странице «Сюжет» должны быть блоки; стрелки между ними задают порядок.</li>
+                                </ol>
+                            </div>
+                        </details>
+                        <details class="fold" id="instr-emoji">
+                            <summary><i data-i="help"></i>Картинка из эмодзи: скриншот из Miro → «Карточки и Заметки»</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-tabcard="dnd-settings|dnd-import-card"><i data-i="arrow_upward"></i>К блоку «Импорт из Miro и файлов» в настройках ДНД</button></p>
+                                <p class="hint">Если в Miro есть рисунок, собранный из эмодзи, iLife может скопировать его клетка за клеткой, и потом вы правите каждую клетку.</p>
+                                <ol class="steps">
+                                    <li>В Miro сохраните нужную часть доски картинкой (меню «⋯» → Board → Save as image) или сделайте скриншот. Лишнее по краям лучше обрезать.</li>
+                                    <li>В «Карточках и Заметках» или «Сюжете» нажмите «⋯» → <b>«Картинка из эмодзи (по рисунку)…»</b> и выберите файл. Можно и выделить картинку, уже лежащую на доске, и нажать кнопку со смайликом.</li>
+                                    <li>Режим <b>«Узнать эмодзи»</b>: iLife сам находит сетку клеток. Проверьте красную рамку и число столбцов и строк (при необходимости поправьте) и нажмите <b>«Распознать»</b>. Режим <b>«Мозаика из рисунка»</b> собирает картинку из цветных значков из обычного рисунка или фото.</li>
+                                    <li>Нажмите <b>«Добавить на доску»</b>. Дважды нажмите на картинку, чтобы править: кисть, ластик, пипетка, заливка, фон клетки, размер, отражение.</li>
+                                    <li>Кнопка «Скопировать текстом» кладёт рисунок строками эмодзи — их можно вставить в Miro. Строки эмодзи, вставленные на доску (Ctrl+V), сами превращаются в картинку.</li>
+                                </ol>
+                                <p class="hint">Рисунки эмодзи у Miro и у вашего устройства могут отличаться, поэтому похожие значки (например, разные лица) иногда путаются. Цвета и места сохраняются, а отдельные клетки легко поправить кистью.</p>
+                            </div>
+                        </details>
                     </div>
                 </div>
             </section>
@@ -1291,7 +1377,7 @@
         <nav class="mobile-nav dnd-nav" aria-label="ДНД">
             <button type="button" class="nav-back" data-dnd-back><span class="pill"><i data-i="arrow_back"></i></span><span>Назад</span></button>
             <button type="button" data-tab="dnd-games"><span class="pill"><i data-i="casino"></i></span><span>Игры</span></button>
-            <button type="button" data-tab="dnd-builder"><span class="pill"><i data-i="dnd_board"></i></span><span>Конструктор</span></button>
+            <button type="button" data-tab="dnd-builder"><span class="pill"><i data-i="dnd_board"></i></span><span>Карточки и Заметки</span></button>
             <button type="button" data-tab="dnd-chars"><span class="pill"><i data-i="groups"></i></span><span>Персонажи</span></button>
             <button type="button" data-tab="dnd-visual"><span class="pill"><i data-i="cube3d"></i></span><span>Вижуал</span></button>
             <button type="button" data-tab="dnd-plot"><span class="pill"><i data-i="account_tree"></i></span><span>Сюжет</span></button>
@@ -1328,6 +1414,12 @@
     <script src="js/dnd-board-ui.js"></script>
     <script src="js/dnd-pages.js"></script>
     <script src="js/dnd-chars.js"></script>
+    <script src="js/dnd-tags.js"></script>
+    <script src="js/dnd-deck.js"></script>
+    <script src="js/dnd-emoji.js"></script>
+    <script src="js/dnd-emoji-ui.js"></script>
+    <script src="js/dnd-city.js"></script>
+    <script src="js/dnd-export.js"></script>
     <script src="js/config.js"></script>
     <script src="js/gdrive.js"></script>
     <script src="js/musictags.js"></script>

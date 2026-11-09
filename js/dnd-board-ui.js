@@ -167,13 +167,13 @@ Object.assign(DndBoard.prototype, {
     },
     moreMenu(btn) {
         const list = document.createElement('div'); list.className = 'bd-list';
-        const rows = [['tpl', 'layers', 'Шаблоны…'], ['png', 'download', 'Сохранить картинкой (PNG)'], ['imp', 'file_upload', 'Импорт из Miro и файлов…'], ['all', 'fit', 'Показать всё'], ['clr', 'delete', 'Очистить доску']];
+        const rows = [['tpl', 'layers', 'Шаблоны…'], ['png', 'download', 'Сохранить картинкой (PNG)'], ['exp', 'picture_as_pdf', 'Экспорт игры: Miro, PDF, текст…'], ['imp', 'file_upload', 'Импорт из Miro и файлов…'], ['emo', 'emoji', 'Картинка из эмодзи (по рисунку)…'], ['all', 'fit', 'Показать всё'], ['clr', 'delete', 'Очистить доску']];
         rows.forEach(r => { const b = document.createElement('button'); b.type = 'button'; b.className = 'bd-li' + (r[0] === 'clr' ? ' is-danger' : ''); b.innerHTML = ic(r[1]) + '<span>' + r[2] + '</span>'; b.addEventListener('click', () => { this.closePop(); this.moreAction(r[0]); }); list.appendChild(b); });
         this.pop(btn, list, 'below');
     },
     async moreAction(a) {
         if (!this.game) return;
-        if (a === 'tpl') this.templateSheet(); else if (a === 'png') this.exportPng(); else if (a === 'imp') dndImportSheet(); else if (a === 'all') this.fit();
+        if (a === 'tpl') this.templateSheet(); else if (a === 'png') this.exportPng(); else if (a === 'exp') dndExportSheet(this.game, this.mode); else if (a === 'imp') dndImportSheet(); else if (a === 'emo') dndEmojiPick(this); else if (a === 'all') this.fit();
         else if (a === 'clr') {
             if (!this.items.length) { toast('Доска и так пуста'); return; }
             const ok = await confirmSheet('Очистить доску?', 'Все предметы на этой доске будут удалены. Сразу после очистки её можно вернуть кнопкой «Отменить».', 'Очистить', true);
@@ -212,14 +212,14 @@ Object.assign(DndBoard.prototype, {
         if (y < 6) y = a2.y + 14;
         ctx.style.left = bdClamp(x, 6, Math.max(6, vr.width - cw - 6)) + 'px'; ctx.style.top = bdClamp(y, 6, Math.max(6, vr.height - ch - 6)) + 'px';
     },
-    ctxSig() { return this.selItems().map(i => i.id + i.t + (i.locked ? 'L' : '') + (i.g || '') + (i.c || i.fill || i.color || '') + (i.shape || '') + (i.style || '') + (i.head || '') + (i.fs || '') + (i.kind || '') + (i.dash ? 'd' : '') + (i.width || '')).join('|') + this.tool; },
+    ctxSig() { return this.selItems().map(i => i.id + i.t + (i.locked ? 'L' : '') + (i.g || '') + (i.c || i.fill || i.color || '') + (i.shape || '') + (i.style || '') + (i.head || '') + (i.fs || '') + (i.fst || '') + (i.kind || '') + (i.dash ? 'd' : '') + (i.width || '') + (i.bold === false ? 'b0' : '') + (i.ital ? 'i' : '') + (i.al || '') + (i.secret ? 's' : '')).join('|') + this.tool; },
     mutate(fn, keepPop) {
         this.selItems().forEach(i => { fn(i); this.paint(i); });
         this.redrawConns(new Set(this.sel)); this.items.forEach(i => { if (i.t === 'conn' && this.sel.has(i.id)) this.drawConn(i); });
         this._ctxKey = null; this.refreshSel(); this.commit(); if (!keepPop) this.closePop();
     },
     ctxBtn(icon, title, fn, on, extraCls) {
-        const b = document.createElement('button'); b.type = 'button'; b.className = 'bd-cb' + (on ? ' is-on' : '') + (extraCls ? ' ' + extraCls : ''); b.title = title; b.setAttribute('aria-label', title); b.innerHTML = icon.startsWith('<') ? icon : ic(icon);
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'bd-cb' + (on ? ' is-on' : '') + (extraCls ? ' ' + extraCls : ''); b.title = title; b.setAttribute('aria-label', title); b.innerHTML = icon.startsWith('<') ? icon : (window.ICONS[icon] ? ic(icon) : '<b class="bd-tx">' + esc(icon) + '</b>');
         b.addEventListener('click', e => { e.stopPropagation(); fn(b); }); return b;
     },
     buildCtx() {
@@ -262,11 +262,21 @@ Object.assign(DndBoard.prototype, {
             if (only === 'card') {
                 add(this.ctxBtn('tag', 'Вид карточки', btn => this.pop(btn, this.listPop(BD_CARD_KINDS.map(k => ({ k: k.k, n: k.n, c: k.c, i: k.i })), single && single.kind, k => this.mutate(i => { i.kind = k; delete i.c; })), 'below')));
             }
+            if (only === 'card' || only === 'block') {
+                const sc = (i, d) => { i.fs = bdClamp((i.fs || 100) + d, 60, 260); i.fst = bdClamp((i.fst || (i.fs - d)) + d, 60, 260); };
+                add(this.ctxBtn('A−', 'Мельче шрифт', () => this.mutate(i => sc(i, -10), true), false, 'is-txt'), this.ctxBtn('A+', 'Крупнее шрифт', () => this.mutate(i => sc(i, 10), true), false, 'is-txt'),
+                    this.ctxBtn('B', 'Жирный заголовок', () => this.mutate(i => { i.bold = i.bold === false; }, true), single && single.bold !== false, 'is-txt is-b'), this.ctxBtn('I', 'Курсив в тексте', () => this.mutate(i => { i.ital = !i.ital; }, true), single && single.ital, 'is-txt is-i'),
+                    this.ctxBtn('sort', 'Выравнивание текста', () => this.mutate(i => { const a = ['left', 'center', 'right']; i.al = a[(a.indexOf(i.al || 'left') + 1) % 3]; }, true)));
+                if (single) add(this.ctxBtn('compress', 'Подогнать высоту карточки под текст', () => this.fitHeight(single)));
+                if (single && single.kind === 'note') add(this.ctxBtn('visibility_off', single.secret ? 'Секрет: убрать пометку' : 'Секрет: пометить полосками', () => this.mutate(i => { i.secret = !i.secret; }, true), single.secret));
+                sep();
+            }
             if (only === 'block') {
                 add(this.ctxBtn('tag', 'Вид блока', btn => this.pop(btn, this.listPop(BD_PLOT_KINDS.map(k => ({ k: k.k, n: k.n, c: k.c, i: k.i })), single && single.kind, k => this.mutate(i => { i.kind = k; })), 'below')));
                 add(this.ctxBtn('check', 'Состояние блока', btn => this.pop(btn, this.listPop(BD_PLOT_STATUS, single && single.status, k => this.mutate(i => { i.status = k; })), 'below')));
             }
-            if (single && (['card', 'block', 'sticky', 'text', 'shape', 'frame'].includes(single.t))) add(this.ctxBtn('edit', single.t === 'card' || single.t === 'block' ? 'Открыть и править' : 'Править текст', () => this.startEdit(single, false)));
+            if (single && (['card', 'block', 'sticky', 'text', 'shape', 'frame', 'emoji'].includes(single.t))) add(this.ctxBtn('edit', single.t === 'card' || single.t === 'block' || single.t === 'emoji' ? 'Открыть и править' : 'Править текст', () => this.startEdit(single, false)));
+            if (single && single.t === 'image' && single.imgId) add(this.ctxBtn('emoji', 'Превратить картинку в эмодзи (распознать значки или собрать мозаику)', async () => { const rec = await BlobDB.get(single.imgId); if (rec && rec.blob) dndEmojiPick(this, rec.blob); else toast('Картинка не найдена на этом устройстве'); }));
             if (single && single.t !== 'pen') add(this.ctxBtn('connector', 'Провести стрелку от этого предмета', () => { this.setTool('connect'); this.pendFrom = single.id; this.hint('Нажмите на предмет, к которому провести стрелку'); }));
             if (l.length > 1) {
                 add(this.ctxBtn('al_left', 'Выровнять по левому краю', () => this.align('left')), this.ctxBtn('al_center', 'По центру (горизонтально)', () => this.align('center')), this.ctxBtn('al_right', 'По правому краю', () => this.align('right')),
@@ -330,55 +340,13 @@ Object.assign(DndBoard.prototype, {
         nodes.forEach(n => this.paint(n)); this.items.forEach(i => { if (i.t === 'conn') this.drawConn(i); }); this.refreshSel(); this.commit(); this.fit(); toast('Блоки выстроены слева направо');
     },
 
-    // ---------- Картинка (PNG) ----------
-    async exportPng() {
-        const b = this.bounds(); if (!b) { toast('На доске пока нечего сохранять'); return; }
-        try {
-            const pad = 48, k = Math.min(2, 4096 / Math.max(b.w + pad * 2, b.h + pad * 2)); const W = Math.ceil((b.w + pad * 2) * k), H = Math.ceil((b.h + pad * 2) * k);
-            const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const g = cv.getContext('2d');
-            g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H); g.scale(k, k); g.translate(pad - b.x, pad - b.y);
-            const rr = (x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
-            const wrap = (text, x, y, w, lh, maxLines) => { let yy = y, n = 0; String(text || '').split('\n').forEach(par => { let line = ''; par.split(' ').forEach(word => { const t = line ? line + ' ' + word : word; if (g.measureText(t).width > w && line) { if (n < maxLines) g.fillText(line, x, yy); yy += lh; n++; line = word; } else line = t; }); if (n < maxLines) g.fillText(line, x, yy); yy += lh; n++; }); return yy; };
-            const font = (px, w) => (w || 400) + ' ' + px + 'px "Google Sans Flex", Roboto, system-ui, sans-serif';
-            const order = this.items.filter(i => i.t !== 'conn').sort((a, b) => (a.t === 'frame' ? -1e9 : a.z || 0) - (b.t === 'frame' ? -1e9 : b.z || 0));
-            for (const i of order.filter(i => i.t === 'frame')) { const c = i.c || '#8e8a98'; g.globalAlpha = 0.09; g.fillStyle = c; rr(i.x, i.y, i.w, i.h, 10); g.fill(); g.globalAlpha = 0.55; g.strokeStyle = c; g.lineWidth = 2; g.stroke(); g.globalAlpha = 1; g.fillStyle = c; g.font = font(15, 600); g.textBaseline = 'alphabetic'; g.fillText(i.title || 'Рамка', i.x + 2, i.y - 8); }
-            for (const i of this.items.filter(i => i.t === 'conn')) {
-                const geo = this.connGeom(i), w = i.width || 2; g.strokeStyle = i.color || '#5f5b66'; g.fillStyle = i.color || '#5f5b66'; g.lineWidth = w; g.lineCap = 'round'; g.setLineDash(i.dash ? [w * 3.2, w * 2.6] : []); g.stroke(new Path2D(geo.d)); g.setLineDash([]);
-                const arrow = (p, ang) => { const s = 9 + w * 1.6, ux = Math.cos(ang), uy = Math.sin(ang), bx = p.x - ux * s, by = p.y - uy * s, hw = s * 0.48; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(bx - uy * hw, by + ux * hw); g.lineTo(bx + uy * hw, by - ux * hw); g.closePath(); g.fill(); };
-                if (i.head === 'end' || i.head === 'both') arrow(geo.p2, geo.a2); if (i.head === 'both') arrow(geo.p1, geo.a1);
-                if (i.label) { g.font = font(13, 500); g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 5; g.strokeStyle = '#fff'; g.strokeText(i.label, geo.mid.x, geo.mid.y); g.fillStyle = '#3a3640'; g.fillText(i.label, geo.mid.x, geo.mid.y); g.textAlign = 'left'; }
-            }
-            for (const i of order.filter(i => i.t !== 'frame')) {
-                const bb = this.box(i); g.textBaseline = 'alphabetic'; g.textAlign = 'left';
-                if (i.t === 'sticky') { g.save(); g.shadowColor = 'rgba(0,0,0,.18)'; g.shadowBlur = 8; g.shadowOffsetY = 2; g.fillStyle = i.c; rr(i.x, i.y, i.w, i.h, 4); g.fill(); g.restore(); g.fillStyle = bdInk(i.c); g.font = font(i.fs || 18, 500); wrap(i.text, i.x + 14, i.y + 14 + (i.fs || 18), i.w - 28, (i.fs || 18) * 1.3, Math.floor((i.h - 20) / ((i.fs || 18) * 1.3))); }
-                else if (i.t === 'text') { g.fillStyle = i.ink || '#1d1b20'; g.font = font(i.fs || 24, 400); wrap(i.text, i.x, i.y + (i.fs || 24), i.w, (i.fs || 24) * 1.25, 60); }
-                else if (i.t === 'shape') {
-                    const fill = i.fill === 'none' ? null : (i.fill || '#fff'); g.lineWidth = 2; g.strokeStyle = i.stroke || '#79747e'; g.beginPath();
-                    if (i.shape === 'ellipse') g.ellipse(i.x + i.w / 2, i.y + i.h / 2, i.w / 2, i.h / 2, 0, 0, Math.PI * 2); else if (i.shape === 'diamond') { g.moveTo(i.x + i.w / 2, i.y); g.lineTo(i.x + i.w, i.y + i.h / 2); g.lineTo(i.x + i.w / 2, i.y + i.h); g.lineTo(i.x, i.y + i.h / 2); g.closePath(); }
-                    else if (i.shape === 'triangle') { g.moveTo(i.x + i.w / 2, i.y); g.lineTo(i.x + i.w, i.y + i.h); g.lineTo(i.x, i.y + i.h); g.closePath(); }
-                    else if (i.shape === 'hex') { g.moveTo(i.x + i.w * .25, i.y); g.lineTo(i.x + i.w * .75, i.y); g.lineTo(i.x + i.w, i.y + i.h / 2); g.lineTo(i.x + i.w * .75, i.y + i.h); g.lineTo(i.x + i.w * .25, i.y + i.h); g.lineTo(i.x, i.y + i.h / 2); g.closePath(); }
-                    else rr(i.x, i.y, i.w, i.h, i.shape === 'round' ? 20 : 4);
-                    if (fill) { g.fillStyle = fill; g.fill(); } g.stroke();
-                    g.fillStyle = i.ink || bdInk(i.fill); g.font = font(i.fs || 18, 500); g.textAlign = 'center'; const lines = String(i.text || '').split('\n'); lines.forEach((ln, n) => g.fillText(ln, i.x + i.w / 2, i.y + i.h / 2 + (n - (lines.length - 1) / 2) * (i.fs || 18) * 1.3 + (i.fs || 18) * 0.35, i.w - 16)); g.textAlign = 'left';
-                }
-                else if (i.t === 'card' || i.t === 'block') {
-                    const kd = i.t === 'card' ? bdKind(BD_CARD_KINDS, i.kind) : bdKind(BD_PLOT_KINDS, i.kind), col = (i.t === 'card' && i.c) || kd.c;
-                    g.save(); g.shadowColor = 'rgba(0,0,0,.2)'; g.shadowBlur = 10; g.shadowOffsetY = 2; g.fillStyle = '#ffffff'; rr(i.x, i.y, i.w, i.h, 12); g.fill(); g.restore();
-                    g.save(); rr(i.x, i.y, i.w, i.h, 12); g.clip(); g.fillStyle = col; g.fillRect(i.x, i.y, i.w, 30); g.restore();
-                    g.fillStyle = '#fff'; g.font = font(13, 600); g.fillText(kd.n, i.x + 12, i.y + 20);
-                    g.fillStyle = '#1d1b20'; g.font = font(16, 600); let yy = wrap(i.title || 'Без названия', i.x + 12, i.y + 54, i.w - 24, 20, 2);
-                    g.fillStyle = '#5f5b66'; g.font = font(13, 400); if (i.text) yy = wrap(i.text, i.x + 12, yy + 2, i.w - 24, 17, Math.max(1, Math.floor((i.y + i.h - yy - 12) / 17)));
-                    if ((i.tags || []).length) { g.fillStyle = col; g.font = font(12, 600); g.fillText(i.tags.map(t => '#' + t).join('  '), i.x + 12, i.y + i.h - 12); }
-                }
-                else if (i.t === 'pen') { g.strokeStyle = i.color; g.lineWidth = i.width || 3; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); (i.pts || []).forEach((p, n) => { const px = i.x + p[0] * (i.w / (i.ow || 1)), py = i.y + p[1] * (i.h / (i.oh || 1)); n ? g.lineTo(px, py) : g.moveTo(px, py); }); g.stroke(); }
-                else if (i.t === 'image') {
-                    const url = i.imgId ? await BlobDB.url(i.imgId) : ''; if (url) { await new Promise(res => { const im = new Image(); im.onload = () => { g.drawImage(im, i.x, i.y, i.w, i.h); res(); }; im.onerror = res; im.src = url; }); }
-                }
-            }
-            const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
-            const name = stampName('ДНД_' + (this.mode === 'plot' ? 'сюжет' : 'доска') + '_' + (this.game.title || 'игра').replace(/[^\p{L}\p{N}_-]+/gu, ''), 'png');
-            const r = await deliverFile(blob, name);
-            toast(r === 'unsupported' ? 'В этом приложении сохранить файл нельзя — откройте iLife в браузере' : r === 'shared' ? 'Картинка готова — выберите, куда её отправить' : 'Сохранено: ' + name);
-        } catch (e) { console.error(e); toast('Не удалось сохранить картинку'); }
-    }
+    // Подогнать высоту карточки или блока под их текст (после смены шрифта): сначала замеряем без ограничений по высоте и по числу строк
+    fitHeight(it) {
+        const el = this.els.get(it.id); if (!el || it.locked) return;
+        const prev = el.style.height; el.classList.add('is-measuring'); el.style.height = 'auto';
+        const need = Math.ceil(el.offsetHeight); el.classList.remove('is-measuring'); el.style.height = prev;
+        it.h = bdClamp(need + 2, 90, 640); this.paint(it); this.redrawConns(new Set([it.id])); this._ctxKey = null; this.refreshSel(); this.commit(); toast('Высота карточки подогнана');
+    },
+
+    // Сохранение в PNG, разрезание на листы PDF и общая отрисовка предметов вынесены в js/dnd-export.js (drawScene, exportPng).
 });
