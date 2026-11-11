@@ -173,7 +173,7 @@ function initProfile() {
 
 // ---------- Данные: копия и восстановление ----------
 async function renderStorageInfo() {
-    let text = 'Идей: ' + ideas.length + ' · дел и покупок: ' + todos.length + ' · фильмов: ' + movies.length + (gallery.length ? ' · фото и GIF: ' + gallery.length : '') + (videos.length ? ' · видео: ' + videos.length : '') + (songs.length ? ' · песен: ' + songs.length : '') + (scripts.length ? ' · сценариев: ' + scripts.length : '') + (dndGames.length ? ' · игр ДНД: ' + dndGames.length : '') + (meds.length ? ' · записей о лекарствах: ' + meds.length : '') + (musicFavs.length ? ' · в избранной музыке: ' + musicFavs.length : '');
+    let text = 'Идей: ' + ideas.length + ' · дел и покупок: ' + todos.length + ' · фильмов: ' + movies.length + (gallery.length ? ' · фото и GIF: ' + gallery.length : '') + (videos.length ? ' · видео: ' + videos.length : '') + (songs.length ? ' · песен: ' + songs.length : '') + (scripts.length ? ' · сценариев: ' + scripts.length : '') + (dndGames.length ? ' · игр ДНД: ' + dndGames.length : '') + (meds.length ? ' · записей в «Лекарствах»: ' + meds.length : '') + (musicFavs.length ? ' · в избранной музыке: ' + musicFavs.length : '');
     try { if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); if (e && e.usage != null) text += ' · занято на устройстве: ' + fmtBytes(e.usage); } } catch (e) {}
     $('#data-info').textContent = text;
 }

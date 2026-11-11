@@ -45,7 +45,7 @@
             <!-- Логотип и версия: нажатие на версию открывает «Настройки → О приложении → Журнал изменений» -->
             <div class="splash-brand">
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.2.1</span><i data-i="chevron_right"></i></button>
+                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.3.0</span><i data-i="chevron_right"></i></button>
             </div>
             <h1 id="splash-greeting" style="font-size:24px;font-weight:400">Здравствуйте!</h1>
             <div class="splash-center">
@@ -68,7 +68,7 @@
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                 <div class="brand-txt">
                     <h2>iLife</h2>
-                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.2.1</span><i data-i="chevron_right"></i></button>
+                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.3.0</span><i data-i="chevron_right"></i></button>
                 </div>
             </div>
             <nav class="sidebar-nav main-nav">
@@ -100,6 +100,7 @@
                 <button type="button" data-tab="med-rx"><i data-i="receipt_long"></i><span>Рецепты</span></button>
                 <button type="button" data-tab="med-orders"><i data-i="medical_services"></i><span>Назначение врача</span></button>
                 <button type="button" data-tab="med-schedule"><i data-i="calendar_month"></i><span>График приёма</span></button>
+                <button type="button" data-tab="med-mood"><i data-i="mood"></i><span>Дневник настроения</span></button>
             </nav>
             <div class="sidebar-foot">Личное приложение · не для коммерческого использования</div>
         </aside>
@@ -114,7 +115,7 @@
                     <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                     <div class="brand-txt">
                         <b>iLife</b>
-                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.2.1</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
+                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.3.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
                     </div>
                 </div>
                 <!-- Поиск — в самом верху: по словам, #хештегам и датам -->
@@ -767,6 +768,35 @@
                 </div>
             </section>
 
+            <!-- ===================== ЛЕКАРСТВА: ДНЕВНИК НАСТРОЕНИЯ (сетка «дни × месяцы», js/meds-mood.js) ===================== -->
+            <section id="med-mood" class="tab" data-tab="med-mood">
+                <header class="page-head">
+                    <div class="page-head-t"><div class="dnd-kicker"><i data-i="medication"></i>Лекарства</div><h1 class="page-title">Дневник настроения</h1></div>
+                </header>
+                <p class="hint med-lead">Каждая клетка — один день: слева числа, сверху месяцы. Нажмите на клетку, чтобы выбрать настроение или цвет и записать комментарий.</p>
+                <div class="card" id="mood-card">
+                    <div class="card-body">
+                        <div class="mood-bar">
+                            <div class="mood-yearnav">
+                                <button type="button" class="icon-btn" id="mood-prev" aria-label="Предыдущий год"><i data-i="chevron_left"></i></button>
+                                <b id="mood-year" aria-live="polite"></b>
+                                <button type="button" class="icon-btn" id="mood-next" aria-label="Следующий год"><i data-i="chevron_right"></i></button>
+                                <button type="button" class="btn" id="mood-today"><i data-i="today"></i>Сегодня</button>
+                            </div>
+                            <div class="mood-zoombar" role="group" aria-label="Масштаб сетки">
+                                <button type="button" class="icon-btn" id="mood-zoom-out" aria-label="Мельче" title="Мельче"><i data-i="zoom_out"></i></button>
+                                <input type="range" id="mood-zoom" min="12" max="72" step="2" aria-label="Размер клетки">
+                                <button type="button" class="icon-btn" id="mood-zoom-in" aria-label="Крупнее" title="Крупнее"><i data-i="zoom_in"></i></button>
+                                <button type="button" class="btn" id="mood-fit" title="Вписать сетку по ширине"><i data-i="fit"></i>Вписать</button>
+                            </div>
+                        </div>
+                        <div class="mood-wrap" id="mood-wrap"><div class="mood-grid" id="mood-grid"></div></div>
+                    </div>
+                </div>
+                <div class="list-head"><h2>За год</h2><span class="count" id="mood-count"></span></div>
+                <div id="mood-stats"></div>
+            </section>
+
             <!-- ===================== НАСТРОЙКИ ===================== -->
             <section id="settings" class="tab" data-tab="settings">
                 <header class="page-head"><h1 class="page-title">Настройки</h1></header>
@@ -986,13 +1016,24 @@
                     <div class="card-body">
                         <div class="about-head">
                             <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">2.2.1</span></div></div>
+                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">2.3.0</span></div></div>
                         </div>
                         <p style="margin-bottom:8px">Личное приложение для себя. Дизайн и логика — из My Money 4.8.1.</p>
                         <p class="hint" style="margin-bottom:16px"><b>Не для коммерческого использования:</b> приложение создано только для личных, некоммерческих целей — его нельзя продавать, сдавать в аренду или использовать в бизнесе. Логотип (папка «iLife ’09») — сторонняя картинка, права на неё принадлежат её владельцам; он используется здесь только в личных целях.</p>
 
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
+                        <div class="cl-version">
+                            <h4>2.3.0 <span class="cl-tag">Лекарства: дневник настроения</span></h4>
+                            <ul>
+                                <li>В меню раздела «Лекарства» появилась четвёртая страница — <b>«Дневник настроения»</b>. Это квадратная сетка на год: слева числа месяца, сверху месяцы, каждая клетка — один день.</li>
+                                <li><b>Нажатие на клетку</b> открывает небольшое окно рядом с ней. Вкладка <b>«Настроение»</b>: 17 настроений — весёлый, довольный, спокойный, бодрый, вдохновлённый, влюблённый, благодарный, никакой, уставший, сонный, грустный, одинокий, тревожный, в стрессе, раздражённый, злой, больной. Вкладка <b>«Цвет»</b>: палитра и любой свой цвет. Ниже — комментарий за этот день.</li>
+                                <li>Клетка закрашивается выбранным цветом; у настроения есть цвет по умолчанию, его можно заменить своим. День с комментарием помечен точкой в углу.</li>
+                                <li><b>Масштаб:</b> кнопки «мельче» и «крупнее», ползунок, кнопка «Вписать» (по ширине экрана), на компьютере — Ctrl и колесо мыши. На крупной сетке в клетке виден значок настроения.</li>
+                                <li>Под сеткой — сколько дней за год отмечено и каких настроений было больше. Годы листаются стрелками.</li>
+                                <li>Дневник хранится в той же базе, что и остальные «Лекарства»: синхронизируется с Google Диском и входит в резервную копию. На телефоне подписи в меню раздела стали короче: «Назначения», «График», «Настроение».</li>
+                            </ul>
+                        </div>
                         <div class="cl-version">
                             <h4>2.2.1 <span class="cl-tag">Сжатые файлы: быстрее первый запуск</span></h4>
                             <ul>
@@ -1513,8 +1554,9 @@
         <nav class="mobile-nav med-nav" aria-label="Лекарства">
             <button type="button" class="nav-back" data-med-back><span class="pill"><i data-i="arrow_back"></i></span><span>Назад</span></button>
             <button type="button" data-tab="med-rx"><span class="pill"><i data-i="receipt_long"></i></span><span>Рецепты</span></button>
-            <button type="button" data-tab="med-orders"><span class="pill"><i data-i="medical_services"></i></span><span>Назначение врача</span></button>
-            <button type="button" data-tab="med-schedule"><span class="pill"><i data-i="calendar_month"></i></span><span>График приёма</span></button>
+            <button type="button" data-tab="med-orders"><span class="pill"><i data-i="medical_services"></i></span><span>Назначения</span></button>
+            <button type="button" data-tab="med-schedule"><span class="pill"><i data-i="calendar_month"></i></span><span>График</span></button>
+            <button type="button" data-tab="med-mood"><span class="pill"><i data-i="mood"></i></span><span>Настроение</span></button>
         </nav>
 
         <!-- Плавающая кнопка: быстро перейти к вводу -->
@@ -1555,6 +1597,7 @@
     <script src="js/dnd-export.js"></script>
     <script src="js/meds.js"></script>
     <script src="js/meds-schedule.js"></script>
+    <script src="js/meds-mood.js"></script>
     <script src="js/config.js"></script>
     <script src="js/gdrive.js"></script>
     <script src="js/musictags.js"></script>

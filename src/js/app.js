@@ -4,7 +4,7 @@
 // служебный воркер (работа без сети).
 // =====================================================================================================
 
-const TABS = ['ideas', 'todo', 'movies', 'music', 'scripts', 'sovsek', 'settings', 'dnd-games', 'dnd-builder', 'dnd-chars', 'dnd-visual', 'dnd-plot', 'dnd-settings', 'med-rx', 'med-orders', 'med-schedule'];   // с 2.0.0 — страницы раздела «ДНД» (js/dnd.js), с 2.2.0 — раздела «Лекарства» (js/meds.js)
+const TABS = ['ideas', 'todo', 'movies', 'music', 'scripts', 'sovsek', 'settings', 'dnd-games', 'dnd-builder', 'dnd-chars', 'dnd-visual', 'dnd-plot', 'dnd-settings', 'med-rx', 'med-orders', 'med-schedule', 'med-mood'];   // с 2.0.0 — страницы раздела «ДНД» (js/dnd.js), с 2.2.0 — раздела «Лекарства» (js/meds.js)
 const collapsedCards = new Set(LS.get('collapsed', []));   // свёрнутые блоки; состояние запоминается
 
 let hashTab = null;   // вкладка, адрес которой (#id) ещё не записан в строку браузера

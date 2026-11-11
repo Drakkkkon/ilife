@@ -12,6 +12,7 @@
 //   plan  — приём лекарства в графике.
 //           { id, kind:'plan', drug, dose, note, times:['08:00', …], from, to, mode:'daily'|'every'|'week', every, wd:[0..6, 0 = пн],
 //             notify, taken:{ 'ГГГГ-ММ-ДД': ['08:00', …] }, orderId, drugId, createdAt, author }
+//   mood  — день в «Дневнике настроения» (js/meds-mood.js): { id:'mood'+дата, kind:'mood', date, mood, color, note, createdAt, author }
 // Список meds синхронизируется с Google Диском поштучно (js/gdrive.js → G_LISTS) и входит в резервную копию (js/settings.js).
 // =====================================================================================================
 
@@ -28,7 +29,7 @@
     });
 })();
 
-const MED_TABS = ['med-rx', 'med-orders', 'med-schedule'];
+const MED_TABS = ['med-rx', 'med-orders', 'med-schedule', 'med-mood'];
 const MED_RX_TYPES = [{ k: 'recipe', n: 'Рецепт', many: 'Рецепты', icon: 'receipt_long' }, { k: 'diagnosis', n: 'Диагноз', many: 'Диагнозы', icon: 'medical_services' }, { k: 'other', n: 'Другое', many: 'Другое', icon: 'description' }];
 
 let meds = LS.get('meds', []);
@@ -75,6 +76,8 @@ function medTabOpened(id) {
     if (id === 'med-rx') renderMedRx();
     if (id === 'med-orders') renderMedOrders();
     if (id === 'med-schedule' && typeof renderMedSchedule === 'function') renderMedSchedule();
+    if (id === 'med-mood' && typeof renderMedMood === 'function') renderMedMood();
+    if (id !== 'med-mood' && typeof moodClosePop === 'function') moodClosePop();
 }
 
 // =====================================================================================================
@@ -343,4 +346,5 @@ function initMeds() {
     $$('[data-med-back]').forEach(b => b.addEventListener('click', medBack));
     initMedRx(); initMedOrders();
     if (typeof initMedSchedule === 'function') initMedSchedule();
+    if (typeof initMedMood === 'function') initMedMood();
 }
