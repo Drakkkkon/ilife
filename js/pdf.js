@@ -1,187 +1,40 @@
-'use strict';
-// =====================================================================================================
-// iLife — СВОЙ ПИСАТЕЛЬ PDF (без внешних библиотек, работает без интернета и без сервера).
-// Текст — настоящий (выделяется и ищется): шрифт Carlito встроен в файл как TrueType (Type0 / Identity-H, js/pdf-fonts.js),
-// картинки — JPEG (DCTDecode). Страница A4, вёрстка сверху вниз с автоматическим переносом строк и страниц.
-// Использование: const pdf = new PdfWriter({ title, footer }); pdf.text(...); pdf.image(...); const blob = await pdf.build();
-// Символы, которых нет в шрифте (эмодзи и т. п.), в PDF пропускаются; «₽» заменяется на «руб.».
-// =====================================================================================================
-
-class PdfWriter {
-    constructor(opts) {
-        opts = opts || {};
-        this.W = 595.28; this.H = 841.89; this.mx = 44; this.mt = 50; this.mb = 54;
-        this.title = opts.title || 'iLife'; this.footer = opts.footer === false ? false : (opts.footer || 'iLife');   // footer:false — без колонтитула (листы карты в ДНД)
-        this.fonts = { regular: window.PDF_FONTS.regular, bold: window.PDF_FONTS.bold };
-        this.pages = []; this.images = []; this.y = 0;
-        this.newPage();
-    }
-    get cw() { return this.W - this.mx * 2; }
-    newPage() { this.cur = { ops: [], imgs: new Set() }; this.pages.push(this.cur); this.y = this.mt; }
-    ensure(h) { if (this.y + h > this.H - this.mb) this.newPage(); }
-    gap(h) { this.y += h; }
-
-    // --- текст ---
-    clean(s) {
-        return String(s == null ? '' : s).replace(/₽/g, 'руб.').replace(/≈/g, '~').replace(/≠/g, '!=').replace(/≤/g, '<=').replace(/≥/g, '>=').replace(/[✓✔]/g, 'v').replace(/✗/g, 'x').replace(/‑/g, '-').replace(/[​-‏︎️⁠]/g, '')
-            .replace(/\p{Extended_Pictographic}/gu, '').replace(/[  ]/g, ' ').replace(/\t/g, '  ').replace(/\r/g, '');
-    }
-    gid(font, cp) { const g = font.cmap[cp]; return g === undefined ? (font.cmap[63] || 0) : g; }
-    width(str, size, bold) {
-        const f = bold ? this.fonts.bold : this.fonts.regular; let w = 0;
-        for (const ch of str) w += f.widths[this.gid(f, ch.codePointAt(0))] || 0;
-        return w * size / 1000;
-    }
-    wrap(str, size, bold, maxW) {
-        const lines = [];
-        this.clean(str).split('\n').forEach(par => {
-            if (!par.trim()) { lines.push(''); return; }
-            let line = '';
-            par.split(' ').forEach(word => {
-                if (word === '') { line += ' '; return; }
-                const test = line ? line + ' ' + word : word;
-                if (this.width(test, size, bold) <= maxW) { line = test; return; }
-                if (line) { lines.push(line); line = ''; }
-                if (this.width(word, size, bold) <= maxW) { line = word; return; }
-                let chunk = ''; // слово длиннее строки — режем по символам
-                for (const ch of word) { if (this.width(chunk + ch, size, bold) > maxW && chunk) { lines.push(chunk); chunk = ''; } chunk += ch; }
-                line = chunk;
-            });
-            lines.push(line);
-        });
-        return lines;
-    }
-    rgb(hex) { const h = String(hex || '#000000').replace('#', ''); return [0, 2, 4].map(i => (parseInt(h.substr(i, 2), 16) / 255).toFixed(3)).join(' '); }
-    // Одна строка с базовой линией на высоте y (от верха страницы)
-    textAt(str, x, y, size, o) {
-        o = o || {}; const f = o.bold ? this.fonts.bold : this.fonts.regular; const s = this.clean(str);
-        let hex = ''; for (const ch of s) hex += this.gid(f, ch.codePointAt(0)).toString(16).padStart(4, '0');
-        if (!hex) return 0;
-        const w = this.width(s, size, o.bold);
-        if (o.align === 'right') x -= w; else if (o.align === 'center') x -= w / 2;
-        this.cur.ops.push('BT /' + (o.bold ? 'F2' : 'F1') + ' ' + size + ' Tf ' + this.rgb(o.color || '#1d1b20') + ' rg 1 0 0 1 ' + x.toFixed(2) + ' ' + (this.H - y).toFixed(2) + ' Tm <' + hex + '> Tj ET');
-        if (o.strike) this.line(x, y - size * 0.28, x + w, y - size * 0.28, o.color || '#79747e', 0.7);
-        return w;
-    }
-    // Абзац с переносами; возвращает высоту
-    para(str, o) {
-        o = o || {}; const size = o.size || 11, lh = (o.lh || 1.32) * size, x = this.mx + (o.indent || 0), maxW = (o.width || this.cw - (o.indent || 0));
-        const lines = this.wrap(str, size, o.bold, maxW); let used = 0;
-        lines.forEach(l => {
-            this.ensure(lh);
-            if (l) this.textAt(l, x, this.y + size * 0.92, size, o);
-            this.y += lh; used += lh;
-        });
-        return used;
-    }
-    // --- рисование ---
-    line(x1, y1, x2, y2, color, w) { this.cur.ops.push((w || 0.6) + ' w ' + this.rgb(color) + ' RG ' + x1.toFixed(2) + ' ' + (this.H - y1).toFixed(2) + ' m ' + x2.toFixed(2) + ' ' + (this.H - y2).toFixed(2) + ' l S'); }
-    rect(x, y, w, h, fill, r) {
-        const Y = this.H - y - h;
-        if (!r) { this.cur.ops.push(this.rgb(fill) + ' rg ' + x.toFixed(2) + ' ' + Y.toFixed(2) + ' ' + w.toFixed(2) + ' ' + h.toFixed(2) + ' re f'); return; }
-        r = Math.min(r, w / 2, h / 2); const k = 0.5523 * r;
-        const p = [x + r, Y, x + w - r, Y]; let d = p[0].toFixed(2) + ' ' + p[1].toFixed(2) + ' m ' + p[2].toFixed(2) + ' ' + p[3].toFixed(2) + ' l ';
-        d += (x + w - r + k).toFixed(2) + ' ' + Y.toFixed(2) + ' ' + (x + w).toFixed(2) + ' ' + (Y + r - k).toFixed(2) + ' ' + (x + w).toFixed(2) + ' ' + (Y + r).toFixed(2) + ' c ';
-        d += (x + w).toFixed(2) + ' ' + (Y + h - r).toFixed(2) + ' l ' + (x + w).toFixed(2) + ' ' + (Y + h - r + k).toFixed(2) + ' ' + (x + w - r + k).toFixed(2) + ' ' + (Y + h).toFixed(2) + ' ' + (x + w - r).toFixed(2) + ' ' + (Y + h).toFixed(2) + ' c ';
-        d += (x + r).toFixed(2) + ' ' + (Y + h).toFixed(2) + ' l ' + (x + r - k).toFixed(2) + ' ' + (Y + h).toFixed(2) + ' ' + x.toFixed(2) + ' ' + (Y + h - r + k).toFixed(2) + ' ' + x.toFixed(2) + ' ' + (Y + h - r).toFixed(2) + ' c ';
-        d += x.toFixed(2) + ' ' + (Y + r).toFixed(2) + ' l ' + x.toFixed(2) + ' ' + (Y + r - k).toFixed(2) + ' ' + (x + r - k).toFixed(2) + ' ' + Y.toFixed(2) + ' ' + (x + r).toFixed(2) + ' ' + Y.toFixed(2) + ' c f';
-        this.cur.ops.push(this.rgb(fill) + ' rg ' + d);
-    }
-    box(x, y, size, color, checked) { // квадратик «галочки»: рамка или залитый с белой галочкой
-        if (checked) {
-            this.rect(x, y, size, size, color, 2.2);
-            this.cur.ops.push('1 1 1 RG ' + (size * 0.16).toFixed(2) + ' w 1 J 1 j ' + (x + size * 0.24).toFixed(2) + ' ' + (this.H - y - size * 0.52).toFixed(2) + ' m ' + (x + size * 0.43).toFixed(2) + ' ' + (this.H - y - size * 0.72).toFixed(2) + ' l ' + (x + size * 0.78).toFixed(2) + ' ' + (this.H - y - size * 0.28).toFixed(2) + ' l S');
-        } else {
-            this.rect(x, y, size, size, color, 2.2); this.rect(x + 1.1, y + 1.1, size - 2.2, size - 2.2, '#ffffff', 1.4);
-        }
-    }
-    // JPEG: { bytes, w, h }; вписывается в рамку mw × mh в точке (x, y) (верхний левый угол)
-    image(img, x, y, mw, mh) {
-        const k = Math.min(mw / img.w, mh / img.h); const w = img.w * k, h = img.h * k;
-        let idx = this.images.indexOf(img); if (idx < 0) { this.images.push(img); idx = this.images.length - 1; }
-        this.cur.imgs.add(idx);
-        this.cur.ops.push('q ' + w.toFixed(2) + ' 0 0 ' + h.toFixed(2) + ' ' + x.toFixed(2) + ' ' + (this.H - y - h).toFixed(2) + ' cm /Im' + idx + ' Do Q');
-        return { w, h };
-    }
-
-    // --- сборка файла ---
-    async build() {
-        const enc = new TextEncoder(); const objs = []; // objs[id-1] = Uint8Array
-        const str = s => enc.encode(s);
-        const cat = (...parts) => { let n = 0; parts.forEach(p => n += p.length); const o = new Uint8Array(n); let i = 0; parts.forEach(p => { o.set(p, i); i += p.length; }); return o; };
-        const reserve = () => { objs.push(null); return objs.length; };
-        const set = (id, bytes) => { objs[id - 1] = bytes; };
-        const add = body => { const id = reserve(); set(id, typeof body === 'string' ? str(body) : body); return id; };
-        const deflate = async u8 => {
-            if (typeof CompressionStream === 'undefined') return null;
-            const cs = new CompressionStream('deflate'); const w = cs.writable.getWriter(); w.write(u8); w.close();
-            return new Uint8Array(await new Response(cs.readable).arrayBuffer());
-        };
-        const stream = async (dict, data, flate) => {
-            let body = data, extra = '';
-            if (flate) { const z = await deflate(data); if (z) { body = z; extra = ' /Filter /FlateDecode'; } }
-            return cat(str('<< ' + dict + extra + ' /Length ' + body.length + ' >>\nstream\n'), body, str('\nendstream'));
-        };
-        const catalog = reserve(), pagesId = reserve();
-        // шрифты
-        const fontRefs = {};
-        for (const key of ['regular', 'bold']) {
-            const f = this.fonts[key]; const tag = key === 'bold' ? 'BBBBBB' : 'AAAAAA'; const base = tag + '+' + f.name;
-            const ttf = Uint8Array.from(atob(f.ttf), c => c.charCodeAt(0));
-            const fileId = add(await stream('/Length1 ' + ttf.length, ttf, true));
-            const descId = add('<< /Type /FontDescriptor /FontName /' + base + ' /Flags 32 /FontBBox [' + f.bbox.join(' ') + '] /ItalicAngle 0 /Ascent ' + f.asc + ' /Descent ' + f.desc + ' /CapHeight ' + f.cap + ' /StemV ' + (key === 'bold' ? 120 : 80) + ' /FontFile2 ' + fileId + ' 0 R >>');
-            const cidId = add('<< /Type /Font /Subtype /CIDFontType2 /BaseFont /' + base + ' /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor ' + descId + ' 0 R /DW 500 /W [0 [' + f.widths.join(' ') + ']] /CIDToGIDMap /Identity >>');
-            // ToUnicode: чтобы текст в PDF можно было выделять, копировать и искать
-            const rev = {}; Object.keys(f.cmap).forEach(cp => { const g = f.cmap[cp]; if (rev[g] === undefined) rev[g] = +cp; });
-            const entries = Object.keys(rev).map(g => '<' + (+g).toString(16).padStart(4, '0') + '> <' + (rev[g] > 0xFFFF ? '' : rev[g].toString(16).padStart(4, '0')) + '>').filter(e => !/<>$/.test(e));
-            let cmap = '/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n';
-            for (let i = 0; i < entries.length; i += 100) { const part = entries.slice(i, i + 100); cmap += part.length + ' beginbfchar\n' + part.join('\n') + '\nendbfchar\n'; }
-            cmap += 'endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend';
-            const tuId = add(await stream('', str(cmap), true));
-            fontRefs[key] = add('<< /Type /Font /Subtype /Type0 /BaseFont /' + base + ' /Encoding /Identity-H /DescendantFonts [' + cidId + ' 0 R] /ToUnicode ' + tuId + ' 0 R >>');
-        }
-        // картинки
-        const imgIds = [];
-        for (const im of this.images) imgIds.push(add(cat(str('<< /Type /XObject /Subtype /Image /Width ' + im.w + ' /Height ' + im.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + im.bytes.length + ' >>\nstream\n'), im.bytes, str('\nendstream'))));
-        // колонтитулы
-        const total = this.pages.length;
-        if (this.footer !== false) this.pages.forEach((pg, i) => {
-            this.cur = pg;
-            this.line(this.mx, this.H - 38, this.W - this.mx, this.H - 38, '#cac4d0', 0.5);
-            this.textAt(this.footer, this.mx, this.H - 26, 8.5, { color: '#79747e' });
-            this.textAt('Стр. ' + (i + 1) + ' из ' + total, this.W - this.mx, this.H - 26, 8.5, { color: '#79747e', align: 'right' });
-        });
-        // страницы
-        const pageIds = [];
-        for (const pg of this.pages) {
-            const content = await stream('', str(pg.ops.join('\n')), true);
-            const cid = add(content);
-            const xo = Array.from(pg.imgs).map(i => '/Im' + i + ' ' + imgIds[i] + ' 0 R').join(' ');
-            pageIds.push(add('<< /Type /Page /Parent ' + pagesId + ' 0 R /MediaBox [0 0 ' + this.W + ' ' + this.H + '] /Resources << /Font << /F1 ' + fontRefs.regular + ' 0 R /F2 ' + fontRefs.bold + ' 0 R >>' + (xo ? ' /XObject << ' + xo + ' >>' : '') + ' >> /Contents ' + cid + ' 0 R >>'));
-        }
-        set(pagesId, str('<< /Type /Pages /Kids [' + pageIds.map(i => i + ' 0 R').join(' ') + '] /Count ' + pageIds.length + ' >>'));
-        set(catalog, str('<< /Type /Catalog /Pages ' + pagesId + ' 0 R >>'));
-        const hexTitle = 'FEFF' + Array.from(this.title).map(ch => { const c = ch.codePointAt(0); return c > 0xFFFF ? '' : c.toString(16).padStart(4, '0'); }).join('').toUpperCase();
-        const d = new Date(); const ds = 'D:' + d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) + pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds()) + 'Z';
-        const infoId = add('<< /Title <' + hexTitle + '> /Producer (iLife ' + APP_VERSION + ') /Creator (iLife) /CreationDate (' + ds + ') >>');
-        // файл: заголовок, объекты, таблица смещений
-        const parts = [str('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n')]; let pos = parts[0].length; const offs = [];
-        objs.forEach((o, i) => { offs.push(pos); const head = str((i + 1) + ' 0 obj\n'), tail = str('\nendobj\n'); parts.push(head, o, tail); pos += head.length + o.length + tail.length; });
-        let xref = 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n';
-        offs.forEach(o => { xref += String(o).padStart(10, '0') + ' 00000 n \n'; });
-        parts.push(str(xref + 'trailer\n<< /Size ' + (objs.length + 1) + ' /Root ' + catalog + ' 0 R /Info ' + infoId + ' 0 R >>\nstartxref\n' + pos + '\n%%EOF\n'));
-        return new Blob(parts, { type: 'application/pdf' });
-    }
-}
-
-// Картинка из хранилища → JPEG для PDF (PDF не умеет WebP/GIF, поэтому всё перекодируется)
-async function pdfImageFromBlob(blob, maxSide, quality) {
-    try {
-        const file = blob instanceof File ? blob : new File([blob], 'x', { type: blob.type });
-        const bmp = await decodeImage(file); const s = bitmapSize(bmp);
-        const r = await canvasBlob(bmp, s.w, s.h, maxSide || 1000, quality || 0.82);
-        if (bmp.close) try { bmp.close(); } catch (e) {}
-        if (!r.blob) return null;
-        return { bytes: new Uint8Array(await r.blob.arrayBuffer()), w: r.w, h: r.h };
-    } catch (e) { return null; }
-}
+/* iLife 2.2.1 — сжатый файл, собран из src/ (node build.cjs). Читаемый код с комментариями и сведениями о лицензиях — в папке src/. Этот файл не править. */
+"use strict";class PdfWriter{constructor(e){e=e||{},this.W=595.28,this.H=841.89,this.mx=44,this.mt=50,this.mb=54,this.title=e.title||"iLife",this.footer=e.footer===!1?!1:e.footer||"iLife",this.fonts={regular:window.PDF_FONTS.regular,bold:window.PDF_FONTS.bold},this.pages=[],this.images=[],this.y=0,this.newPage()}get cw(){return this.W-this.mx*2}newPage(){this.cur={ops:[],imgs:new Set},this.pages.push(this.cur),this.y=this.mt}ensure(e){this.y+e>this.H-this.mb&&this.newPage()}gap(e){this.y+=e}clean(e){return String(e??"").replace(/₽/g,"руб.").replace(/≈/g,"~").replace(/≠/g,"!=").replace(/≤/g,"<=").replace(/≥/g,">=").replace(/[✓✔]/g,"v").replace(/✗/g,"x").replace(/‑/g,"-").replace(/[​-‏︎️⁠]/g,"").replace(/\p{Extended_Pictographic}/gu,"").replace(/[  ]/g," ").replace(/\t/g,"  ").replace(/\r/g,"")}gid(e,i){const t=e.cmap[i];return t===void 0?e.cmap[63]||0:t}width(e,i,t){const o=t?this.fonts.bold:this.fonts.regular;let c=0;for(const s of e)c+=o.widths[this.gid(o,s.codePointAt(0))]||0;return c*i/1e3}wrap(e,i,t,o){const c=[];return this.clean(e).split(`
+`).forEach(s=>{if(!s.trim()){c.push("");return}let n="";s.split(" ").forEach(d=>{if(d===""){n+=" ";return}const h=n?n+" "+d:d;if(this.width(h,i,t)<=o){n=h;return}if(n&&(c.push(n),n=""),this.width(d,i,t)<=o){n=d;return}let l="";for(const u of d)this.width(l+u,i,t)>o&&l&&(c.push(l),l=""),l+=u;n=l}),c.push(n)}),c}rgb(e){const i=String(e||"#000000").replace("#","");return[0,2,4].map(t=>(parseInt(i.substr(t,2),16)/255).toFixed(3)).join(" ")}textAt(e,i,t,o,c){c=c||{};const s=c.bold?this.fonts.bold:this.fonts.regular,n=this.clean(e);let d="";for(const l of n)d+=this.gid(s,l.codePointAt(0)).toString(16).padStart(4,"0");if(!d)return 0;const h=this.width(n,o,c.bold);return c.align==="right"?i-=h:c.align==="center"&&(i-=h/2),this.cur.ops.push("BT /"+(c.bold?"F2":"F1")+" "+o+" Tf "+this.rgb(c.color||"#1d1b20")+" rg 1 0 0 1 "+i.toFixed(2)+" "+(this.H-t).toFixed(2)+" Tm <"+d+"> Tj ET"),c.strike&&this.line(i,t-o*.28,i+h,t-o*.28,c.color||"#79747e",.7),h}para(e,i){i=i||{};const t=i.size||11,o=(i.lh||1.32)*t,c=this.mx+(i.indent||0),s=i.width||this.cw-(i.indent||0),n=this.wrap(e,t,i.bold,s);let d=0;return n.forEach(h=>{this.ensure(o),h&&this.textAt(h,c,this.y+t*.92,t,i),this.y+=o,d+=o}),d}line(e,i,t,o,c,s){this.cur.ops.push((s||.6)+" w "+this.rgb(c)+" RG "+e.toFixed(2)+" "+(this.H-i).toFixed(2)+" m "+t.toFixed(2)+" "+(this.H-o).toFixed(2)+" l S")}rect(e,i,t,o,c,s){const n=this.H-i-o;if(!s){this.cur.ops.push(this.rgb(c)+" rg "+e.toFixed(2)+" "+n.toFixed(2)+" "+t.toFixed(2)+" "+o.toFixed(2)+" re f");return}s=Math.min(s,t/2,o/2);const d=.5523*s,h=[e+s,n,e+t-s,n];let l=h[0].toFixed(2)+" "+h[1].toFixed(2)+" m "+h[2].toFixed(2)+" "+h[3].toFixed(2)+" l ";l+=(e+t-s+d).toFixed(2)+" "+n.toFixed(2)+" "+(e+t).toFixed(2)+" "+(n+s-d).toFixed(2)+" "+(e+t).toFixed(2)+" "+(n+s).toFixed(2)+" c ",l+=(e+t).toFixed(2)+" "+(n+o-s).toFixed(2)+" l "+(e+t).toFixed(2)+" "+(n+o-s+d).toFixed(2)+" "+(e+t-s+d).toFixed(2)+" "+(n+o).toFixed(2)+" "+(e+t-s).toFixed(2)+" "+(n+o).toFixed(2)+" c ",l+=(e+s).toFixed(2)+" "+(n+o).toFixed(2)+" l "+(e+s-d).toFixed(2)+" "+(n+o).toFixed(2)+" "+e.toFixed(2)+" "+(n+o-s+d).toFixed(2)+" "+e.toFixed(2)+" "+(n+o-s).toFixed(2)+" c ",l+=e.toFixed(2)+" "+(n+s).toFixed(2)+" l "+e.toFixed(2)+" "+(n+s-d).toFixed(2)+" "+(e+s-d).toFixed(2)+" "+n.toFixed(2)+" "+(e+s).toFixed(2)+" "+n.toFixed(2)+" c f",this.cur.ops.push(this.rgb(c)+" rg "+l)}box(e,i,t,o,c){c?(this.rect(e,i,t,t,o,2.2),this.cur.ops.push("1 1 1 RG "+(t*.16).toFixed(2)+" w 1 J 1 j "+(e+t*.24).toFixed(2)+" "+(this.H-i-t*.52).toFixed(2)+" m "+(e+t*.43).toFixed(2)+" "+(this.H-i-t*.72).toFixed(2)+" l "+(e+t*.78).toFixed(2)+" "+(this.H-i-t*.28).toFixed(2)+" l S")):(this.rect(e,i,t,t,o,2.2),this.rect(e+1.1,i+1.1,t-2.2,t-2.2,"#ffffff",1.4))}image(e,i,t,o,c){const s=Math.min(o/e.w,c/e.h),n=e.w*s,d=e.h*s;let h=this.images.indexOf(e);return h<0&&(this.images.push(e),h=this.images.length-1),this.cur.imgs.add(h),this.cur.ops.push("q "+n.toFixed(2)+" 0 0 "+d.toFixed(2)+" "+i.toFixed(2)+" "+(this.H-t-d).toFixed(2)+" cm /Im"+h+" Do Q"),{w:n,h:d}}async build(){const e=new TextEncoder,i=[],t=r=>e.encode(r),o=(...r)=>{let a=0;r.forEach(F=>a+=F.length);const g=new Uint8Array(a);let p=0;return r.forEach(F=>{g.set(F,p),p+=F.length}),g},c=()=>(i.push(null),i.length),s=(r,a)=>{i[r-1]=a},n=r=>{const a=c();return s(a,typeof r=="string"?t(r):r),a},d=async r=>{if(typeof CompressionStream>"u")return null;const a=new CompressionStream("deflate"),g=a.writable.getWriter();return g.write(r),g.close(),new Uint8Array(await new Response(a.readable).arrayBuffer())},h=async(r,a,g)=>{let p=a,F="";if(g){const S=await d(a);S&&(p=S,F=" /Filter /FlateDecode")}return o(t("<< "+r+F+" /Length "+p.length+` >>
+stream
+`),p,t(`
+endstream`))},l=c(),u=c(),C={};for(const r of["regular","bold"]){const a=this.fonts[r],p=(r==="bold"?"BBBBBB":"AAAAAA")+"+"+a.name,F=Uint8Array.from(atob(a.ttf),f=>f.charCodeAt(0)),S=n(await h("/Length1 "+F.length,F,!0)),O=n("<< /Type /FontDescriptor /FontName /"+p+" /Flags 32 /FontBBox ["+a.bbox.join(" ")+"] /ItalicAngle 0 /Ascent "+a.asc+" /Descent "+a.desc+" /CapHeight "+a.cap+" /StemV "+(r==="bold"?120:80)+" /FontFile2 "+S+" 0 R >>"),M=n("<< /Type /Font /Subtype /CIDFontType2 /BaseFont /"+p+" /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor "+O+" 0 R /DW 500 /W [0 ["+a.widths.join(" ")+"]] /CIDToGIDMap /Identity >>"),b={};Object.keys(a.cmap).forEach(f=>{const y=a.cmap[f];b[y]===void 0&&(b[y]=+f)});const B=Object.keys(b).map(f=>"<"+(+f).toString(16).padStart(4,"0")+"> <"+(b[f]>65535?"":b[f].toString(16).padStart(4,"0"))+">").filter(f=>!/<>$/.test(f));let A=`/CIDInit /ProcSet findresource begin
+12 dict begin
+begincmap
+/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def
+/CMapName /Adobe-Identity-UCS def
+/CMapType 2 def
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+`;for(let f=0;f<B.length;f+=100){const y=B.slice(f,f+100);A+=y.length+` beginbfchar
+`+y.join(`
+`)+`
+endbfchar
+`}A+=`endcmap
+CMapName currentdict /CMap defineresource pop
+end
+end`;const W=n(await h("",t(A),!0));C[r]=n("<< /Type /Font /Subtype /Type0 /BaseFont /"+p+" /Encoding /Identity-H /DescendantFonts ["+M+" 0 R] /ToUnicode "+W+" 0 R >>")}const D=[];for(const r of this.images)D.push(n(o(t("<< /Type /XObject /Subtype /Image /Width "+r.w+" /Height "+r.h+" /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length "+r.bytes.length+` >>
+stream
+`),r.bytes,t(`
+endstream`))));const H=this.pages.length;this.footer!==!1&&this.pages.forEach((r,a)=>{this.cur=r,this.line(this.mx,this.H-38,this.W-this.mx,this.H-38,"#cac4d0",.5),this.textAt(this.footer,this.mx,this.H-26,8.5,{color:"#79747e"}),this.textAt("Стр. "+(a+1)+" из "+H,this.W-this.mx,this.H-26,8.5,{color:"#79747e",align:"right"})});const I=[];for(const r of this.pages){const a=await h("",t(r.ops.join(`
+`)),!0),g=n(a),p=Array.from(r.imgs).map(F=>"/Im"+F+" "+D[F]+" 0 R").join(" ");I.push(n("<< /Type /Page /Parent "+u+" 0 R /MediaBox [0 0 "+this.W+" "+this.H+"] /Resources << /Font << /F1 "+C.regular+" 0 R /F2 "+C.bold+" 0 R >>"+(p?" /XObject << "+p+" >>":"")+" >> /Contents "+g+" 0 R >>"))}s(u,t("<< /Type /Pages /Kids ["+I.map(r=>r+" 0 R").join(" ")+"] /Count "+I.length+" >>")),s(l,t("<< /Type /Catalog /Pages "+u+" 0 R >>"));const E="FEFF"+Array.from(this.title).map(r=>{const a=r.codePointAt(0);return a>65535?"":a.toString(16).padStart(4,"0")}).join("").toUpperCase(),m=new Date,j="D:"+m.getUTCFullYear()+pad2(m.getUTCMonth()+1)+pad2(m.getUTCDate())+pad2(m.getUTCHours())+pad2(m.getUTCMinutes())+pad2(m.getUTCSeconds())+"Z",U=n("<< /Title <"+E+"> /Producer (iLife "+APP_VERSION+") /Creator (iLife) /CreationDate ("+j+") >>"),w=[t(`%PDF-1.4
+%âãÏÓ
+`)];let T=w[0].length;const R=[];i.forEach((r,a)=>{R.push(T);const g=t(a+1+` 0 obj
+`),p=t(`
+endobj
+`);w.push(g,r,p),T+=g.length+r.length+p.length});let P=`xref
+0 `+(i.length+1)+`
+0000000000 65535 f 
+`;return R.forEach(r=>{P+=String(r).padStart(10,"0")+` 00000 n 
+`}),w.push(t(P+`trailer
+<< /Size `+(i.length+1)+" /Root "+l+" 0 R /Info "+U+` 0 R >>
+startxref
+`+T+`
+%%EOF
+`)),new Blob(w,{type:"application/pdf"})}}async function pdfImageFromBlob(x,e,i){try{const t=x instanceof File?x:new File([x],"x",{type:x.type}),o=await decodeImage(t),c=bitmapSize(o),s=await canvasBlob(o,c.w,c.h,e||1e3,i||.82);if(o.close)try{o.close()}catch{}return s.blob?{bytes:new Uint8Array(await s.blob.arrayBuffer()),w:s.w,h:s.h}:null}catch{return null}}

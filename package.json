@@ -1,0 +1,12 @@
+{
+  "name": "ilife",
+  "private": true,
+  "description": "iLife — личное некоммерческое приложение. Сборка: сжатие файлов из src/ в корень сайта.",
+  "scripts": {
+    "build": "node build.cjs",
+    "check": "node build.cjs --check"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
+  }
+}

@@ -2,7 +2,8 @@
 <!--
   iLife — личное приложение. НЕ ДЛЯ КОММЕРЧЕСКОГО ИСПОЛЬЗОВАНИЯ: только для личных, некоммерческих целей.
   Логотип (images/logo.png, значки сайта и приложения) — сторонняя картинка «iLife ’09»; права на неё принадлежат её владельцам.
-  Версия приложения: js/core.js (APP_VERSION), служебный воркер: sw.js (CACHE), значки: ссылки с ?v= здесь и в manifest.webmanifest.
+  С версии 2.2.1 файлы js/, css/ и sw.js в корне — сжатые (собираются программой build.cjs), читаемый код — в папке src/.
+  Версия приложения: src/js/core.js (APP_VERSION), служебный воркер: src/sw.js (CACHE), значки: ссылки с ?v= здесь и в manifest.webmanifest.
 -->
 <html lang="ru" data-layout="compact" data-mode="light" data-variant="violet">
 <head>
@@ -44,7 +45,7 @@
             <!-- Логотип и версия: нажатие на версию открывает «Настройки → О приложении → Журнал изменений» -->
             <div class="splash-brand">
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.2.0</span><i data-i="chevron_right"></i></button>
+                <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.2.1</span><i data-i="chevron_right"></i></button>
             </div>
             <h1 id="splash-greeting" style="font-size:24px;font-weight:400">Здравствуйте!</h1>
             <div class="splash-center">
@@ -67,7 +68,7 @@
                 <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                 <div class="brand-txt">
                     <h2>iLife</h2>
-                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.2.0</span><i data-i="chevron_right"></i></button>
+                    <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.2.1</span><i data-i="chevron_right"></i></button>
                 </div>
             </div>
             <nav class="sidebar-nav main-nav">
@@ -113,7 +114,7 @@
                     <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
                     <div class="brand-txt">
                         <b>iLife</b>
-                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.2.0</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
+                        <button type="button" class="ver-chip" data-goto-changelog title="Что нового — журнал изменений"><span>версия</span> <span class="app-ver">2.2.1</span><span class="ver-more">· что нового</span><i data-i="chevron_right"></i></button>
                     </div>
                 </div>
                 <!-- Поиск — в самом верху: по словам, #хештегам и датам -->
@@ -985,13 +986,20 @@
                     <div class="card-body">
                         <div class="about-head">
                             <span class="logo-tile"><img class="app-logo" src="images/logo.png" alt="iLife"></span>
-                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">2.2.0</span></div></div>
+                            <div><b>iLife</b><div class="hint">Версия <span class="app-ver">2.2.1</span></div></div>
                         </div>
                         <p style="margin-bottom:8px">Личное приложение для себя. Дизайн и логика — из My Money 4.8.1.</p>
                         <p class="hint" style="margin-bottom:16px"><b>Не для коммерческого использования:</b> приложение создано только для личных, некоммерческих целей — его нельзя продавать, сдавать в аренду или использовать в бизнесе. Логотип (папка «iLife ’09») — сторонняя картинка, права на неё принадлежат её владельцам; он используется здесь только в личных целях.</p>
 
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
+                        <div class="cl-version">
+                            <h4>2.2.1 <span class="cl-tag">Сжатые файлы: быстрее первый запуск</span></h4>
+                            <ul>
+                                <li>Скрипты и стили приложения теперь <b>сжимаются</b> перед выкладкой на сайт (программа esbuild): они стали примерно на 28% меньше, поэтому первое открытие и обновление идут быстрее. В работе приложения ничего не изменилось, данные остаются на месте.</li>
+                                <li>Читаемый код с комментариями никуда не делся — он лежит в папке <b>src</b> репозитория. Файл <b>js/config.js</b> сжатие не затрагивает.</li>
+                            </ul>
+                        </div>
                         <div class="cl-version">
                             <h4>2.2.0 <span class="cl-tag">Новый раздел «Лекарства»</span></h4>
                             <ul>
