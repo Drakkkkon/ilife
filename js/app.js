@@ -4,7 +4,7 @@
 // служебный воркер (работа без сети).
 // =====================================================================================================
 
-const TABS = ['ideas', 'todo', 'movies', 'music', 'scripts', 'sovsek', 'settings', 'dnd-games', 'dnd-builder', 'dnd-chars', 'dnd-visual', 'dnd-plot', 'dnd-settings'];   // с 2.0.0 — страницы раздела «ДНД» (js/dnd.js)
+const TABS = ['ideas', 'todo', 'movies', 'music', 'scripts', 'sovsek', 'settings', 'dnd-games', 'dnd-builder', 'dnd-chars', 'dnd-visual', 'dnd-plot', 'dnd-settings', 'med-rx', 'med-orders', 'med-schedule'];   // с 2.0.0 — страницы раздела «ДНД» (js/dnd.js), с 2.2.0 — раздела «Лекарства» (js/meds.js)
 const collapsedCards = new Set(LS.get('collapsed', []));   // свёрнутые блоки; состояние запоминается
 
 let hashTab = null;   // вкладка, адрес которой (#id) ещё не записан в строку браузера
@@ -14,8 +14,9 @@ function showTab(id) {
     if (!TABS.includes(id)) id = 'ideas';
     $$('.tab').forEach(t => t.classList.toggle('is-active', t.id === id));
     $$('[data-tab]').forEach(b => { if (b.tagName === 'BUTTON') { const on = b.dataset.tab === id; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'page' : 'false'); } });
-    $('#fab').classList.toggle('is-hidden', id === 'settings' || id === 'sovsek' || id === 'scripts' || id === 'music' || id.startsWith('dnd-'));
+    $('#fab').classList.toggle('is-hidden', id === 'settings' || id === 'sovsek' || id === 'scripts' || id === 'music' || id.startsWith('dnd-') || id.startsWith('med-'));
     if (typeof dndNavSync === 'function') dndNavSync(id);   // меню: главное или меню «ДНД» с кнопкой «Назад»
+    if (typeof medNavSync === 'function') medNavSync(id);   // …или меню «Лекарства»
     settings.lastTab = id; saveSettings();
     if (document.readyState === 'complete') syncHash(id); else hashTab = id;   // пока страница грузится, адрес не трогаем: иначе Chrome «прокручивает к якорю» #id и сдвигает верх страницы
     window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
@@ -27,6 +28,7 @@ function showTab(id) {
     if (id === 'scripts') renderScripts();
     if (id === 'ideas') renderSongs();
     if (id.startsWith('dnd-') && typeof dndTabOpened === 'function') dndTabOpened(id);
+    if (id.startsWith('med-') && typeof medTabOpened === 'function') medTabOpened(id);
 }
 
 // Нажатие на версию (рядом с логотипом): открыть «Настройки → О приложении → Журнал изменений»
@@ -102,6 +104,7 @@ async function bootstrap() {
     initSongs();
     initScripts();
     initDnd();
+    initMeds();
     initSettings();
     initCloud();
     let start = (location.hash || '').replace('#', '');

@@ -173,7 +173,7 @@ function initProfile() {
 
 // ---------- Данные: копия и восстановление ----------
 async function renderStorageInfo() {
-    let text = 'Идей: ' + ideas.length + ' · дел и покупок: ' + todos.length + ' · фильмов: ' + movies.length + (gallery.length ? ' · фото и GIF: ' + gallery.length : '') + (videos.length ? ' · видео: ' + videos.length : '') + (songs.length ? ' · песен: ' + songs.length : '') + (scripts.length ? ' · сценариев: ' + scripts.length : '') + (dndGames.length ? ' · игр ДНД: ' + dndGames.length : '') + (musicFavs.length ? ' · в избранной музыке: ' + musicFavs.length : '');
+    let text = 'Идей: ' + ideas.length + ' · дел и покупок: ' + todos.length + ' · фильмов: ' + movies.length + (gallery.length ? ' · фото и GIF: ' + gallery.length : '') + (videos.length ? ' · видео: ' + videos.length : '') + (songs.length ? ' · песен: ' + songs.length : '') + (scripts.length ? ' · сценариев: ' + scripts.length : '') + (dndGames.length ? ' · игр ДНД: ' + dndGames.length : '') + (meds.length ? ' · записей о лекарствах: ' + meds.length : '') + (musicFavs.length ? ' · в избранной музыке: ' + musicFavs.length : '');
     try { if (navigator.storage && navigator.storage.estimate) { const e = await navigator.storage.estimate(); if (e && e.usage != null) text += ' · занято на устройстве: ' + fmtBytes(e.usage); } } catch (e) {}
     $('#data-info').textContent = text;
 }
@@ -183,7 +183,7 @@ async function backupData() {
         const media = [];
         const galIds = new Set(gallery.map(g => g.id).concat(videos.map(g => g.id), Array.from(gAllSongAudio())));   // фото, видео «Мое_совсек» и аудио песен в копию не входят: они большие и лежат на Google Диске
         for (const id of await BlobDB.ids()) { if (galIds.has(id)) continue; const rec = await BlobDB.get(id); if (rec) media.push({ id: rec.id, name: rec.name, type: rec.type, size: rec.size, data: await blobToBase64(rec.blob), thumb: rec.thumb ? await blobToBase64(rec.thumb) : null, thumbType: rec.thumb ? rec.thumb.type : null }); }
-        const data = { app: 'iLife', version: APP_VERSION, exportedAt: new Date().toISOString(), settings, ideas, todos, prices, movies, songs, scripts, dnd: dndGames, musicfav: musicFavs, media };
+        const data = { app: 'iLife', version: APP_VERSION, exportedAt: new Date().toISOString(), settings, ideas, todos, prices, movies, songs, scripts, dnd: dndGames, musicfav: musicFavs, meds, media };
         const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
         const name = stampName('копия', 'json');
         const res = await deliverFile(blob, name);
@@ -198,7 +198,7 @@ async function restoreData(file) {
     const ok = await confirmSheet('Заменить данные копией?', 'Идей в копии: ' + data.ideas.length + ', дел и покупок: ' + (data.todos || []).length + ', фильмов: ' + (data.movies || []).length + (data.songs ? ', песен: ' + data.songs.length : '') + (data.scripts ? ', сценариев: ' + data.scripts.length : '') + '. Текущие идеи, дела, фильмы, песни, сценарии и вложения на этом устройстве будут заменены. Файлы песен и фото останутся на месте.', 'Заменить', true);
     if (!ok) return;
     try {
-        const galIds = new Set(gallery.map(g => g.id).concat(videos.map(g => g.id), Array.from(gAllSongAudio()), (Array.isArray(data.songs) ? data.songs : []).map(x => x && x.audioId).filter(Boolean)));   // фото, видео «Мое_совсек» и аудио песен (нынешних и из копии) остаются на месте
+        const galIds = new Set(gallery.map(g => g.id).concat(videos.map(g => g.id), Array.from(gAllSongAudio()), (Array.isArray(data.songs) ? data.songs : []).map(x => x && x.audioId).filter(Boolean), Array.isArray(data.meds) ? [] : Array.from(mediaRefs(meds))));   // фото, видео «Мое_совсек» и аудио песен (нынешних и из копии) остаются на месте
         for (const id of await BlobDB.ids()) if (!galIds.has(id)) await BlobDB.del(id);
         for (const m of data.media || []) await BlobDB.put({ id: m.id, name: m.name, type: m.type, size: m.size, blob: b64ToBlob(m.data, m.type), thumb: m.thumb ? b64ToBlob(m.thumb, m.thumbType) : null });
         ideas = data.ideas; todos = data.todos || []; prices = data.prices || []; movies = Array.isArray(data.movies) ? data.movies : [];
@@ -206,6 +206,7 @@ async function restoreData(file) {
         if (Array.isArray(data.scripts)) { scripts = data.scripts; saveScripts(); }
         if (Array.isArray(data.dnd)) { dndGames = data.dnd; if (!dndGame(dndActiveId)) dndActiveId = ''; saveDnd(); if (typeof dndAfterSync === 'function') dndAfterSync(); }
         if (Array.isArray(data.musicfav)) { musicFavs = data.musicfav; saveMusicFavs(); if (typeof muFavChanged === 'function') muFavChanged(); }
+        if (Array.isArray(data.meds)) { meds = data.meds; saveMeds(); if (typeof medsAfterSync === 'function') medsAfterSync(); }   // раздел «Лекарства» (в копиях с 2.2.0)
         saveIdeas(); saveTodos(); saveMovies(); IX.clear();
         renderIdeas(); renderTodo(); renderMovies(); renderSongs(); renderScripts(); renderDraft(); renderStorageInfo();
         toast('Данные восстановлены из копии');
