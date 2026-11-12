@@ -615,3 +615,30 @@ html[data-layout="compact"] .cy-t span { display: none; } html[data-layout="comp
 
 .bk-tags > span { margin-right: 5px; }
 .bk-tags > span:last-child { margin-right: 0; }
+
+/* ---------- «3D-карта»: прогулка по городу (js/dnd-city3d.js) ---------- */
+.cy-root { position: relative; }
+.cy3 { position: absolute; inset: 0; z-index: 6; background: #cfe3f0; color: #fff; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.cy3[hidden] { display: none; }
+.cy3-stage { position: absolute; inset: 0; } .cy3-cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.cy3-top { position: absolute; left: 0.5rem; right: 0.5rem; top: 0.5rem; display: flex; gap: 0.375rem; align-items: center; pointer-events: none; }
+.cy3-top > * { pointer-events: auto; } .cy3-sp { flex: 1 1 auto; pointer-events: none !important; }
+.cy3-b { display: inline-flex; align-items: center; gap: 0.375rem; height: 2.5rem; padding: 0 0.875rem; border: none; border-radius: 1.25rem; background: rgba(30, 25, 40, .62); color: #fff; font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.cy3-b .mi { width: 1.25rem; height: 1.25rem; } .cy3-b.is-ic { width: 2.5rem; padding: 0; justify-content: center; } .cy3-b:hover { background: rgba(30, 25, 40, .8); } .cy3-b.is-on { background: var(--md-primary, #6750a4); }
+.cy3-btns { position: absolute; right: 0.75rem; bottom: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.cy3-cross { position: absolute; left: 50%; top: 50%; width: 0.5rem; height: 0.5rem; margin: -0.25rem 0 0 -0.25rem; border-radius: 50%; background: rgba(255, 255, 255, .85); box-shadow: 0 0 0 1px rgba(0, 0, 0, .45); pointer-events: none; }
+.cy3-near { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 0.125rem; max-width: 70%; padding: 0.5rem 1.125rem; border: none; border-radius: 1.25rem; background: rgba(103, 80, 164, .92); color: #fff; font: inherit; font-weight: 700; font-size: 0.9375rem; cursor: pointer; }
+.cy3-near[hidden] { display: none; } .cy3-near small { font-weight: 500; opacity: .85; font-size: 0.75rem; }
+.cy3-stick { position: absolute; width: 6.75rem; height: 6.75rem; margin: -3.375rem 0 0 -3.375rem; border-radius: 50%; background: rgba(255, 255, 255, .16); border: 2px solid rgba(255, 255, 255, .5); pointer-events: none; }
+.cy3-stick[hidden] { display: none; } .cy3-stick i { position: absolute; left: 50%; top: 50%; width: 2.75rem; height: 2.75rem; margin: -1.375rem 0 0 -1.375rem; border-radius: 50%; background: rgba(255, 255, 255, .7); box-shadow: 0 1px 6px rgba(0, 0, 0, .35); }
+.cy3-load { position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; padding: 1.5rem; text-align: center; background: linear-gradient(#2c2640, #4a3f6b); }
+.cy3-load[hidden] { display: none; } .cy3-load small { opacity: .8; max-width: 22rem; }
+.cy3-spin { width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 0.3rem solid rgba(255, 255, 255, .25); border-top-color: #fff; animation: cy3spin 0.9s linear infinite; }
+@keyframes cy3spin { to { transform: rotate(360deg); } }
+.cy3-fps { position: absolute; left: 0.5rem; top: 3.5rem; padding: 0.125rem 0.5rem; border-radius: 0.5rem; background: rgba(0, 0, 0, .55); font: 0.75rem/1.4 monospace; pointer-events: none; } .cy3-fps[hidden] { display: none; }
+.cy3-tip { position: absolute; left: 50%; top: 3.5rem; transform: translateX(-50%); max-width: 86%; padding: 0.5rem 0.875rem; border-radius: 1rem; background: rgba(30, 25, 40, .8); font-size: 0.8125rem; text-align: center; opacity: 0; transition: opacity .3s; pointer-events: none; } .cy3-tip.is-on { opacity: 1; }
+.c3-adv { margin: 0.25rem 0 0.5rem; }
+html[data-layout="compact"] .cy3-b span { display: none; } html[data-layout="compact"] .cy3-b { min-width: 2.5rem; padding: 0; justify-content: center; }
+.cy-3d { position: absolute; right: 0.5rem; top: 0.5rem; z-index: 2; display: inline-flex; align-items: center; gap: 0.375rem; height: 2.5rem; padding: 0 1rem 0 0.75rem; border: none; border-radius: 1.25rem; background: var(--md-primary, #6750a4); color: var(--md-on-primary, #fff); font: inherit; font-weight: 700; font-size: 0.9375rem; box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, .28); cursor: pointer; }
+.cy-3d .mi { width: 1.25rem; height: 1.25rem; } .cy-3d:hover { filter: brightness(1.08); }
+.cy-empty:not([hidden]) ~ .cy-3d, .cy-view:has(.cy-empty:not([hidden])) .cy-3d { display: none; }

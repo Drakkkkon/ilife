@@ -1024,6 +1024,17 @@
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
                         <div class="cl-version">
+                            <h4>2.4.0 <span class="cl-tag">ДНД: 3D-карта</span></h4>
+                            <ul>
+                                <li>На странице «Вижуал» раздела «ДНД» появился режим <b>«3D»</b>: кнопка в панели инструментов и круглая кнопка в углу карты. Ваша 2D-карта превращается в 3D-город, по которому можно <b>гулять от первого лица</b>.</li>
+                                <li>Дома, башни, замки, храмы, рынки, кузницы, деревья, камни, вода, дороги — строятся из вашей карты автоматически: цвет здания берётся с 2D-карты, надписи видны над зданиями, герои стоят фигурками. Модели — бесплатные наборы Kenney (лицензия CC0), движок — three.js (лицензия MIT).</li>
+                                <li><b>Управление.</b> Телефон: левая часть экрана — джойстик, правая — поворот головы, кнопки «Бег» и «Полёт». Компьютер: W A S D или стрелки, мышь (нажмите на картинку), Shift — бег, F — полёт, Esc — отпустить мышь, второй Esc — выход на карту.</li>
+                                <li>Подойдите к зданию и нажмите на появившуюся плашку с его названием — откроется описание, как на 2D-карте. Через здания, воду и деревья пройти нельзя; в режиме полёта можно облететь город сверху.</li>
+                                <li><b>Настройки графики</b> (значок шестерёнки): готовые режимы «Эконом», «Баланс», «Высокое», «Ультра», «Авто» (подбирает по телефону и сам снижает чёткость, если картинка тормозит) и «Своё» — чёткость, дальность прорисовки, тени, сглаживание, деревья, облака, фонари. Дополнительно: время суток (день, закат, ночь), угол обзора, чувствительность, скорость ходьбы, подписи, счётчик FPS. Настройки хранятся на устройстве.</li>
+                                <li>3D загружается только при открытии режима и не замедляет остальное приложение. При первом запуске нужен интернет (около 1,4 МБ), дальше всё сохраняется для работы без сети.</li>
+                            </ul>
+                        </div>
+                        <div class="cl-version">
                             <h4>2.3.0 <span class="cl-tag">Лекарства: дневник настроения</span></h4>
                             <ul>
                                 <li>В меню раздела «Лекарства» появилась четвёртая страница — <b>«Дневник настроения»</b>. Это квадратная сетка на год: слева числа месяца, сверху месяцы, каждая клетка — один день.</li>
@@ -1259,6 +1270,12 @@
                                 <li><a class="lk-a" href="https://miro.com" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Miro — ваши доски</b><small>miro.com — откройте нужную доску на компьютере</small></span></a></li>
                                 <li><a class="lk-a" href="https://help.miro.com/hc/en-us/articles/360017572754-Board-export" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Miro — экспорт доски</b><small>справка Miro: JPG, PDF, SVG и CSV (на английском)</small></span></a></li>
                                 <li><a class="lk-a" href="https://developers.miro.com" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Miro для разработчиков</b><small>developers.miro.com — токен доступа для выгрузки JSON (для опытных)</small></span></a></li>
+                            </ul></section>
+                            <section class="lk-group"><h4><i data-i="view_in_ar"></i>ДНД: 3D-карта</h4><ul class="lk-list">
+                                <li><a class="lk-a" href="https://opengameart.org/content/fantasy-town-kit" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Kenney — Fantasy Town Kit</b><small>модели домов и деревьев, лицензия CC0 (opengameart.org)</small></span></a></li>
+                                <li><a class="lk-a" href="https://opengameart.org/content/castle-kit" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Kenney — Castle Kit</b><small>башни, стены и замки, лицензия CC0 (opengameart.org)</small></span></a></li>
+                                <li><a class="lk-a" href="https://kenney.nl" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Kenney</b><small>kenney.nl — другие бесплатные наборы моделей</small></span></a></li>
+                                <li><a class="lk-a" href="https://threejs.org" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>three.js</b><small>threejs.org — 3D-движок (лицензия MIT)</small></span></a></li>
                             </ul></section>
                             <section class="lk-group"><h4><i data-i="link"></i>GitHub</h4><ul class="lk-list">
                                 <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Репозиторий iLife</b><small>github.com/Drakkkkon/ilife</small></span></a></li>
@@ -1520,6 +1537,21 @@
                                 <p class="hint">У каждого лекарства напоминание можно выключить отдельно — значок колокольчика в блоке «Мои лекарства».</p>
                             </div>
                         </details>
+                        <details class="fold" id="instr-3d">
+                            <summary><i data-i="help"></i>ДНД: 3D-карта — управление и настройки графики</summary>
+                            <div class="fold-body">
+                                <p class="hint">«ДНД» → «Вижуал» → соберите карту → кнопка <b>«3D»</b> в панели инструментов (или круглая кнопка в углу карты). Вы окажетесь в центре видимой части карты; если выбрано здание — перед его дверью, если выбран герой — рядом с ним.</p>
+                                <ol class="steps">
+                                    <li><b>Телефон.</b> Левая часть экрана — джойстик (поставьте палец и ведите). Правая часть — поворот головы. Кнопка «Бег» ускоряет, «Полёт» поднимает над городом; «К карте» возвращает на 2D-карту в то место, где вы стоите.</li>
+                                    <li><b>Компьютер.</b> W A S D или стрелки — ходьба, мышь — взгляд (нажмите на картинку, чтобы захватить мышь), Shift — бег, F — полёт, Esc — отпустить мышь, второй Esc — выход на карту.</li>
+                                    <li><b>Здания.</b> Когда вы близко и смотрите на здание, появляется плашка с его названием — нажмите на неё, и откроется описание здания.</li>
+                                    <li><b>Слабый телефон.</b> Нажмите шестерёнку и выберите «Эконом». Если всё равно тормозит — подвиньте любой ползунок (режим сам станет «Своё»): уменьшите «Чёткость» и «Дальность прорисовки», тени поставьте «Нет», выключите облака, фонари и «Красивые деревья из набора», «Деревьев на клетку леса» — на минимум. Режим «Авто» делает это сам: подбирает настройки под телефон и снижает чёткость, когда кадров мало.</li>
+                                    <li><b>Хороший телефон или компьютер.</b> «Высокое» или «Ультра»: включаются тени, сглаживание, дальний обзор и плотные леса. Время суток («День», «Закат», «Ночь») меняет свет, небо и туман.</li>
+                                    <li>Изменения тяжёлых настроек (тени, деревья, сглаживание, фонари) применяются, когда вы закроете окно настроек — несколько секунд карта строится заново.</li>
+                                </ol>
+                                <p class="hint">Как это сделано: 3D-вид строится из ваших клеток карты — ничего рисовать заново не нужно. Здания нельзя зайти внутрь. 3D открывается без интернета, если уже запускался раньше на этом устройстве; при первом запуске нужен интернет (около 1,4 МБ). Модели — наборы Fantasy Town Kit и Castle Kit студии Kenney (лицензия CC0, можно свободно использовать), движок — three.js (лицензия MIT); тексты лицензий лежат в папке assets/3d.</p>
+                            </div>
+                        </details>
                     </div>
                 </div>
             </section>
@@ -1594,6 +1626,8 @@
     <script src="js/dnd-emoji.js"></script>
     <script src="js/dnd-emoji-ui.js"></script>
     <script src="js/dnd-city.js"></script>
+    <script src="js/dnd-city3d-world.js"></script>
+    <script src="js/dnd-city3d.js"></script>
     <script src="js/dnd-export.js"></script>
     <script src="js/meds.js"></script>
     <script src="js/meds-schedule.js"></script>

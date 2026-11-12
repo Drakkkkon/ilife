@@ -140,14 +140,14 @@ class DndCity {
             '<div class="cy-root"><div class="cy-bar" id="cy-bar"></div><div class="cy-sub" id="cy-sub"></div>' +
             '<div class="cy-view" id="cy-view"><canvas class="cy-cv" id="cy-cv" aria-label="Карта города"></canvas><div class="cy-hint" id="cy-hint"></div>' +
             '<div class="cy-zoom"><button type="button" class="icon-btn" data-z="in" aria-label="Приблизить">' + ic('add') + '</button><button type="button" class="icon-btn" data-z="out" aria-label="Отдалить">' + ic('remove') + '</button><button type="button" class="icon-btn" data-z="fit" aria-label="Показать всю карту">' + ic('fit') + '</button></div>' +
-            '<div class="cy-empty" id="cy-empty" hidden></div></div></div>';
+            '<button type="button" class="cy-3d" id="cy-3d" aria-label="Включить 3D: прогулка по городу" title="3D: прогулка по городу от первого лица">' + ic('view_in_ar') + '<span>3D</span></button><div class="cy-empty" id="cy-empty" hidden></div></div></div>';
         this.$ = s => host.querySelector(s); this.cv = this.$('#cy-cv'); this.ctx = this.cv.getContext('2d');
         this.buildBar(); this.bindEvents();
         if (window.ResizeObserver) new ResizeObserver(() => { if (host.offsetParent) this.resize(); }).observe(this.$('#cy-view'));
     }
     // ----- панель -----
     buildBar() {
-        const tools = [['select', 'cursor', 'Выбрать'], ['hand', 'hand', 'Двигать'], ['bld', 'apartment', 'Здание'], ['tile', 'road', 'Местность'], ['hero', 'person', 'Герои'], ['decor', 'tree', 'Декор']];
+        const tools = [['select', 'cursor', 'Выбрать'], ['hand', 'hand', 'Двигать'], ['bld', 'apartment', 'Здание'], ['tile', 'road', 'Местность'], ['hero', 'person', 'Герои'], ['decor', 'tree', 'Декор'], ['view3d', 'view_in_ar', '3D']];
         this.$('#cy-bar').innerHTML = '<span data-dnd-gamebar></span><div class="cy-tools">' + tools.map(t => '<button type="button" class="cy-t" data-t="' + t[0] + '" title="' + t[2] + '" aria-label="' + t[2] + '">' + ic(t[1]) + '<span>' + t[2] + '</span></button>').join('') + '</div>' +
             '<div class="cy-acts"><button type="button" class="icon-btn" data-a="undo" aria-label="Отменить" title="Отменить">' + ic('undo') + '</button><button type="button" class="icon-btn" data-a="png" aria-label="Сохранить картинкой" title="Сохранить картинкой (PNG)">' + ic('download') + '</button><button type="button" class="icon-btn" data-a="exp" aria-label="Экспорт и печать" title="Экспорт: PDF для склейки карты, Miro, текст">' + ic('picture_as_pdf') + '</button><button type="button" class="icon-btn" data-a="set" aria-label="Размер карты и вид" title="Размер карты и вид">' + ic('tune') + '</button></div>';
         hydrateIcons(this.$('#cy-bar')); if (typeof dndRefreshHeaders === 'function') dndRefreshHeaders();
@@ -173,6 +173,7 @@ class DndCity {
     tokenName(p) { const c = p.char ? (this.g.chars || []).find(x => x.id === p.char) : null; return c ? (c.name || 'Без имени') : (p.n || 'Жетон'); }
     // ----- данные -----
     bind(g) {
+        if (this.v3) { this.v3.stop(); this.v3 = null; }
         this.g = g || null; this.city = g ? dndCityGet(g, true) : null; this.sel = null; this.undo = []; this.drag = null;
         if (this.city) { this.tiles = Uint8Array.from(this.city.tiles, ch => +ch || 0); }
         const e = this.$('#cy-empty'); e.hidden = !!g;
@@ -230,6 +231,7 @@ class DndCity {
         cv.addEventListener('dblclick', e => { if (!this.city || this.tool !== 'select') return; const p = this.local(e), c = this.cellAt(p.x, p.y), h = this.hit(c.x, c.y); if (h && h.t === 'b') this.editBuilding(h); });
         this.$('.cy-zoom').addEventListener('click', e => { const b = e.target.closest('[data-z]'); if (!b) return; if (b.dataset.z === 'fit') this.fit(); else this.zoomAt(b.dataset.z === 'in' ? 1.25 : 0.8, this.vw / 2, this.vh / 2); });
         this.host.addEventListener('click', e => {
+            if (e.target.closest('.cy-3d')) { this.open3d(); return; }
             const t = e.target.closest('.cy-t'); if (t) { this.setTool(t.dataset.t); return; }
             const a = e.target.closest('[data-a]'); if (a) { this.act(a.dataset.a); return; }
             const bk = e.target.closest('[data-bk]'); if (bk) { this.bkind = bk.dataset.bk; this.syncBar(); return; }
@@ -239,8 +241,26 @@ class DndCity {
             const s = e.target.closest('[data-s]'); if (s) this.selAct(s.dataset.s);
         });
     }
+    // ----- 3D-режим: прогулка по городу от первого лица (js/dnd-city3d.js) -----
+    open3d() {
+        if (!this.city) { toast('Сначала выберите игру'); return; }
+        if (this.v3) return;
+        if (typeof City3D === 'undefined') { toast('3D-режим не загрузился — обновите страницу'); return; }
+        const root = this.$('.cy-root'); let el = this.$('#cy3'); if (!el) { el = document.createElement('div'); el.className = 'cy3'; el.id = 'cy3'; root.appendChild(el); }
+        this.city.tiles = Array.from(this.tiles).join('');
+        const sel = this.sel && this.city.items.find(i => i.id === this.sel), c = this.cellAt(this.vw / 2, this.vh / 2);
+        let start = { x: c.x, z: c.y };   // старт — в центре видимой части карты, а если выбрано здание — перед его дверью
+        if (sel && sel.t === 'b') start = { x: sel.x + Math.floor((sel.w - 1) / 2) + 0.5, z: sel.y + sel.h + 0.9, yaw: 0 }; else if (sel && sel.t === 'p') start = { x: sel.x, z: sel.y + 0.8 };
+        this.v3 = new City3D(el, {
+            city: this.city, g: this.g, start,
+            onExit: p => { this.v3 = null; if (p && this.vw) { this.view.x = this.vw / 2 - p.x * this.px; this.view.y = this.vh / 2 - p.z * this.px; } this.draw(); },
+            onBld: b => { this.sel = b.id; this.tapItem(b); }
+        });
+        this.v3.start();
+    }
     setTool(t) {
         if (t === 'hero') { this.heroSheet(); return; }
+        if (t === 'view3d') { this.open3d(); return; }
         this.tool = t; if (t !== 'select') this.sel = null; this.cv.style.touchAction = 'none'; this.cv.dataset.tool = t; this.syncBar(); this.draw();
         const h = this.$('#cy-hint'); h.textContent = ''; h.classList.remove('is-on');
     }
