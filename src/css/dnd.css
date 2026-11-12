@@ -641,4 +641,17 @@ html[data-layout="compact"] .cy-t span { display: none; } html[data-layout="comp
 html[data-layout="compact"] .cy3-b span { display: none; } html[data-layout="compact"] .cy3-b { min-width: 2.5rem; padding: 0; justify-content: center; }
 .cy-3d { position: absolute; right: 0.5rem; top: 0.5rem; z-index: 2; display: inline-flex; align-items: center; gap: 0.375rem; height: 2.5rem; padding: 0 1rem 0 0.75rem; border: none; border-radius: 1.25rem; background: var(--md-primary, #6750a4); color: var(--md-on-primary, #fff); font: inherit; font-weight: 700; font-size: 0.9375rem; box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, .28); cursor: pointer; }
 .cy-3d .mi { width: 1.25rem; height: 1.25rem; } .cy-3d:hover { filter: brightness(1.08); }
-.cy-empty:not([hidden]) ~ .cy-3d, .cy-view:has(.cy-empty:not([hidden])) .cy-3d { display: none; }
+.cy-empty:not([hidden]) ~ .cy-3d, .cy-view:has(.cy-empty:not([hidden])) .cy-3d, .cy-view:has(.cy-empty:not([hidden])) .cy-gen { display: none; }
+
+/* ----- «Вижуал»: генератор карт ----- */
+.gn-h { margin: 0.875rem 0 0.375rem; font-size: 0.9375rem; font-weight: 600; color: var(--md-on-surface); }
+.gn-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.625rem; }
+.gn-card { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem; text-align: left; border: 1px solid var(--md-outline-variant); border-radius: 0.875rem; background: var(--md-container-high); color: var(--md-on-surface); cursor: pointer; font: inherit; }
+.gn-card canvas, .gn-prev canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; border-radius: 0.5rem; background: #8fc7ea; }
+.gn-card b { font-size: 0.8125rem; } .gn-card small { font-size: 0.6875rem; line-height: 1.3; color: var(--md-on-variant); }
+.gn-card:hover, .gn-card:focus-visible { border-color: var(--md-primary); outline: none; }
+.gn-prev { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-start; margin-top: 0.625rem; }
+.gn-prev canvas { flex: 1 1 12rem; width: auto; min-width: 0; max-width: 22rem; }
+.gn-side { display: flex; flex: 1 1 8rem; flex-direction: column; gap: 0.375rem; align-items: flex-start; } .gn-side small { color: var(--md-on-variant); }
+.cy-gen { position: absolute; left: 0.5rem; top: 0.5rem; z-index: 2; display: inline-flex; align-items: center; gap: 0.375rem; height: 2.5rem; padding: 0 1rem 0 0.75rem; border: none; border-radius: 1.25rem; background: var(--md-secondary-container); color: var(--md-on-secondary-container); font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22); }
+.cy-gen .mi { width: 1.25rem; height: 1.25rem; } .cy-gen:hover { filter: brightness(1.05); }

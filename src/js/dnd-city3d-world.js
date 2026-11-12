@@ -316,7 +316,7 @@ function c3World(city, g, q) {
         circle(x, z, r) { const k = (Math.floor(z) * W + Math.floor(x)); let a = circ.get(k); if (!a) circ.set(k, a = []); a.push(x, z, r); }
     };
     const T = (x, y) => x < 0 || y < 0 || x >= W || y >= H ? -1 : tiles[y * W + x];
-    const base = [c3Lin('#79b560'), c3Lin('#bcb09a'), c3Lin('#b9a77c'), c3Lin('#dccfae'), c3Lin('#5e9a50'), c3Lin('#d9c66c'), c3Lin('#8f8c98')];   // трава, дорога, дно, площадь, лес, поле, камень
+    const base = [c3Lin('#79b560'), c3Lin('#bcb09a'), c3Lin('#b9a77c'), c3Lin('#dccfae'), c3Lin('#5e9a50'), c3Lin('#d9c66c'), c3Lin('#8f8c98'), c3Lin('#dcc78d'), c3Lin('#eef2f7')];   // трава, дорога, дно, площадь, лес, поле, камень, песок, снег
     const jit = (c, x, z, a) => c3Mul(c, 1 + (c3Hash(x * 4, z * 4, 11) - 0.5) * a);   // цвет в углу клетки: соседние клетки плавно переходят друг в друга
     const flat = (m, x, z, y, col, a) => m.quad([x, y, z + 1], [x + 1, y, z + 1], [x + 1, y, z], [x, y, z], jit(col, x, z + 1, a), jit(col, x + 1, z + 1, a), jit(col, x + 1, z, a), jit(col, x, z, a));
     // 1. местность
@@ -364,6 +364,7 @@ function c3World(city, g, q) {
             case '🌴': c3Tree(X, m, x, z, 0.95, 3, rot); break;
             case '⛲': m.piece('fountain-round', x, 0, z, 0, 0.5); X.circle(x, z, 0.5); break;
             case '🪨': c3Rock(X, m, x, z, 0.7 + 0.3 * r, rot); break;
+            case '🌵': { const gc = c3Lin('#4f8a4a'); m.cyl(x, 0, z, 0.11, 0.72, 7, gc); m.cyl(x - 0.21, 0.3, z, 0.055, 0.3, 6, gc); m.box(x - 0.21, 0.27, z - 0.03, x, 0.33, z + 0.03, gc); m.cyl(x + 0.21, 0.2, z, 0.055, 0.24, 6, gc); m.box(x, 0.17, z - 0.03, x + 0.21, 0.23, z + 0.03, gc); X.circle(x, z, 0.14); break; }
             case '🌸': for (let n = 0; n < 7; n++) { const fx = x - 0.35 + 0.7 * c3Hash(d.x, d.y, 70 + n), fz = z - 0.35 + 0.7 * c3Hash(d.x, d.y, 80 + n); m.cone(fx, 0, fz, 0.06, 0.2, 4, c3Lin('#4f9a47')); m.sphere(fx, 0.22, fz, 0.06, c3Hsl([340, 20, 50, 280, 0][n % 5], 0.7, 0.68), 5); } break;
             case '🔥': { m.piece('c.tree-trunk', x - 0.12, 0, z, 0.4, 0.6); m.piece('c.tree-trunk', x + 0.12, 0, z + 0.05, 2.2, 0.6); m.piece('c.tree-trunk', x, 0, z - 0.12, 4.1, 0.6); glow.cone(x, 0.04, z, 0.13, 0.34, 6, c3Lin('#ff8a1f'), c3Lin('#ffd24a')); glow.cone(x, 0.04, z, 0.07, 0.25, 5, c3Lin('#fff0a0')); X.circle(x, z, 0.2); break; }
             case '⛺': { const c = c3Hsl(c3Hash(d.x, d.y, 5) * 360, 0.5, 0.55); m.hip(x - 0.5, z - 0.4, x + 0.5, z + 0.4, 0, 0.62, c, 0.02); m.quad([x - 0.5, 0.01, z + 0.4], [x + 0.5, 0.01, z + 0.4], [x + 0.5, 0.01, z - 0.4], [x - 0.5, 0.01, z - 0.4], c3Mul(c, 0.5)); X.circle(x, z, 0.45); break; }

@@ -48,7 +48,8 @@ const bdKind = (list, k) => list.find(x => x.k === k) || list[list.length - 1];
 
 // ---------- Данные ----------
 function saveDnd() { if (typeof cloudLocalChanged === 'function') cloudLocalChanged(); return LS.set('dnd_games', dndGames); }
-const saveDndSoon = debounce(() => saveDnd(), 600);
+// пока палец на карте (рисование, перетаскивание), запись откладывается: большая запись посреди мазка даёт заметный рывок
+const saveDndSoon = debounce(() => { if (typeof dndCity !== 'undefined' && dndCity && dndCity.drag) { saveDndSoon(); return; } saveDnd(); }, 600);
 function dndTouch(g) { if (g) { g.updatedAt = Date.now(); if (typeof dndTagReset === 'function') dndTagReset(g); } saveDndSoon(); }
 const dndGame = id => dndGames.find(g => g.id === id) || null;
 function dndCur() { return dndGame(dndActiveId) || null; }
