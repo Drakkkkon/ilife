@@ -31,7 +31,7 @@ const MED_PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.mi
 const MED_PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 const MED_COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
 const MED_PDF_PAGES = 4;        // сколько страниц PDF читать
-const MED_AI_BATCH = 4;         // сколько картинок за один запрос к ИИ
+const MED_AI_BATCH = 2;         // сколько картинок за один запрос к ИИ
 const MED_MONTHS_RX = ['январ', 'феврал', 'март', 'апрел', 'ма', 'июн', 'июл', 'август', 'сентябр', 'октябр', 'ноябр', 'декабр'];
 
 // =====================================================================================================
@@ -255,7 +255,7 @@ const MED_AI_PROMPT = 'На фото — рецепт, назначение ил
     '"date":"дата приёма или выписки рецепта в формате ГГГГ-ММ-ДД","patient":"ФИО пациента","patientBirth":"дата рождения или возраст пациента","diagnosis":"диагноз словами (и код МКБ, если есть)",' +
     '"drugs":[{"name":"название препарата как в рецепте, кириллицей, если это возможно","latin":"латинское или международное название","form":"таблетки | капсулы | сироп | капли | мазь | уколы | порошок | спрей | другое",' +
     '"strength":"дозировка препарата, например 500 мг","dose":"сколько за один приём, например 1 таблетка","how":"как принимать: сколько раз в день, до или после еды, утром или вечером","days":число дней курса или null}],' +
-    '"recommendations":"остальные назначения: режим, диета, процедуры, анализы","nextVisit":"когда прийти снова","other":[{"label":"название пункта","value":"значение"}],"text":"весь прочитанный текст построчно"}\n' +
+    '"recommendations":"остальные назначения: режим, диета, процедуры, анализы","nextVisit":"когда прийти снова","other":[{"label":"название пункта","value":"значение"}],"text":"прочитанный текст коротко, не длиннее 1500 знаков"}\n' +
     'Правила: ничего не выдумывай — чего нет на фото, оставь пустой строкой. Сокращения рецепта (Rp., D.S., S., t.i.d., b.i.d., p.o., №10) переведи в поле how на понятный русский. ' +
     'Номер рецепта, печать, подпись, номер полиса и прочие пункты, которым нет своего поля, положи в other. Если фото несколько — это страницы одного документа.';
 function medJsonFrom(text) {
@@ -281,7 +281,7 @@ async function medAiImage(blob) {   // для почерка нужна карт
     try { bmp = await decodeImage(blob); }
     catch (e) { if (/^image\/(jpeg|png|webp|heic|heif)$/.test(blob.type || '') && blob.size < 7e6) return blob; throw new Error('не удалось открыть фото (формат ' + (blob.type || 'неизвестен') + ')'); }
     const s = bitmapSize(bmp);
-    const r = await canvasBlob(bmp, s.w, s.h, 1600, 0.86);
+    const r = await canvasBlob(bmp, s.w, s.h, 1400, 0.85);
     if (bmp.close) try { bmp.close(); } catch (e) {}
     if (!r.blob) throw new Error('не удалось подготовить картинку');
     return r.blob;
@@ -289,8 +289,12 @@ async function medAiImage(blob) {   // для почерка нужна карт
 // Один запрос к ИИ. Сырой ответ сохраняется (med_ai_last) — его видно в «Распознанном тексте», если разобрать не вышло
 async function medAiAsk(blobs, extra, status, label) {
     const name = MV_AI_NAMES[mvCfg().ai] || 'ИИ';
-    status('Отправляем ' + name + label + ' — читает рецепт (бывает до 2–3 минут)…');
-    const ans = await mvAskAiText({ text: MED_AI_PROMPT + extra, imageBlobs: blobs, maxTokens: 8192, timeout: 180000, safetyOff: true });
+    const t0 = Date.now(); let got = 0;
+    const tick = () => { const sec = Math.round((Date.now() - t0) / 1000); status(name + label + (got ? ' пишет ответ: ' + got + ' знаков' : ' читает рецепт') + ' · ' + sec + ' с'); };
+    tick(); const timer = setInterval(tick, 1000);
+    let ans;
+    try { ans = await mvAskAiText({ text: MED_AI_PROMPT + extra, imageBlobs: blobs, maxTokens: 8192, timeout: 300000, idle: 120000, stream: true, fast: true, safetyOff: true, onProgress: n => { got = n; } }); }
+    finally { clearInterval(timer); }
     LS.set('med_ai_last', String(ans || '').slice(0, 6000));
     const j = medJsonFrom(ans);
     if (!j) { const e = new Error(name + ' ответил не по форме'); e.code = 'format'; e.raw = ans; throw e; }

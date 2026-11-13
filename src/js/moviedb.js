@@ -407,7 +407,60 @@ function mvAiModelChain() {   // основная модель и, если св
     const c = mvCfg(), main = mvAiModel();
     return String(c.aiModel || '').trim() ? [main] : [main].concat(MV_AI_FALLBACKS[c.ai] || []);
 }
-async function mvAskAiText(parts) {   // общий вызов: parts = { text, imageBlob? или imageBlobs:[…], maxTokens?, timeout? } → строка ответа (его же используют разбор постов Telegram — js/telegram.js — и распознавание рецептов — js/meds-recognize.js)
+// Gemini по частям (SSE): ответ приходит кусками, поэтому ждём, пока куски идут, и обрываем только при долгой тишине.
+// opts: { idle, total, onProgress(chars) } → { text, finish, block }
+async function mvGeminiStream(model, key, body, opts) {
+    const ctl = new AbortController();
+    let idleT = 0, why = '';
+    const kick = () => { clearTimeout(idleT); idleT = setTimeout(() => { why = 'idle'; ctl.abort(); }, opts.idle); };
+    const totalT = setTimeout(() => { why = 'total'; ctl.abort(); }, opts.total);
+    kick();
+    let res;
+    try { res = await fetch(GEMINI_API + encodeURIComponent(model) + ':streamGenerateContent?alt=sse&key=' + encodeURIComponent(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl.signal }); }
+    catch (e) { clearTimeout(idleT); clearTimeout(totalT); if (e && e.name === 'AbortError') throw mvErr('timeout', 'нет ответа ' + Math.round(opts.idle / 1000) + ' секунд'); throw mvErr('network', 'нет связи с сервером'); }
+    if (!res.ok) {
+        clearTimeout(idleT); clearTimeout(totalT);
+        const t = await res.text().catch(() => ''); let j = null; try { j = JSON.parse(t); } catch (e) {}
+        const m = j && (Array.isArray(j) ? j[0] : j); const msg = m && m.error && m.error.message || '';
+        throw mvErr(res.status, mvHttpMessage(res.status, msg));
+    }
+    let text = '', finish = '', block = '', buf = '';
+    const dec = new TextDecoder();
+    const eat = line => {
+        if (!line.startsWith('data:')) return;
+        let j; try { j = JSON.parse(line.slice(5).trim()); } catch (e) { return; }
+        if (j.promptFeedback && j.promptFeedback.blockReason) block = j.promptFeedback.blockReason;
+        const c = (j.candidates || [])[0] || {};
+        ((c.content && c.content.parts) || []).forEach(p => { if (!p.thought && p.text) text += p.text; });
+        if (c.finishReason) finish = c.finishReason;
+    };
+    try {
+        const rd = res.body.getReader();
+        for (;;) {
+            const { done, value } = await rd.read();
+            if (done) break;
+            kick();
+            buf += dec.decode(value, { stream: true });
+            let i; while ((i = buf.indexOf('\n')) >= 0) { eat(buf.slice(0, i).replace(/\r$/, '')); buf = buf.slice(i + 1); }
+            if (opts.onProgress) opts.onProgress(text.length);
+        }
+        if (buf) eat(buf);
+    } catch (e) {
+        if (!text) throw mvErr('timeout', why === 'total' ? 'не уложился в ' + Math.round(opts.total / 60000) + ' минут' : 'нет ответа ' + Math.round(opts.idle / 1000) + ' секунд');
+        finish = finish || 'MAX_TOKENS';   // успели получить часть — пусть разбирается то, что пришло
+    } finally { clearTimeout(idleT); clearTimeout(totalT); }
+    return { text, finish, block };
+}
+// Чтобы модель не «думала» минутами: у Gemini 2.5 — малый бюджет размышлений, у Gemini 3 и новее — низкий уровень.
+let mvGemNoThinkCfg = false;
+function mvGeminiThinking(model) {
+    if (mvGemNoThinkCfg) return null;
+    const m = String(model).toLowerCase();
+    if (/gemini-2\.5/.test(m)) return { thinkingBudget: /pro/.test(m) ? 128 : 0 };
+    if (/gemini-([3-9]|\d\d)/.test(m)) return { thinkingLevel: 'low' };
+    return null;
+}
+async function mvAskAiText(parts) {   // общий вызов: parts = { text, imageBlob? или imageBlobs:[…], maxTokens?, timeout?, stream?, fast?, onProgress? } → строка ответа (его же используют разбор постов Telegram — js/telegram.js — и распознавание рецептов — js/meds-recognize.js)
     const c = mvCfg(), key = mvKey('aiKey');
     if (!mvHasAi()) throw mvErr('nokey', 'ИИ не подключён');
     const blobs = parts.imageBlobs || (parts.imageBlob ? [parts.imageBlob] : []);
@@ -421,10 +474,23 @@ async function mvAskAiText(parts) {   // общий вызов: parts = { text, 
             const body = { contents: [{ parts: [{ text: parts.text }].concat(imgs.map(d => ({ inline_data: { mime_type: d.type, data: d.data } }))) }],
                 generationConfig: { response_mime_type: 'application/json', maxOutputTokens: Math.max(parts.maxTokens || 0, 16384) } };
             if (parts.safetyOff) body.safetySettings = ['HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT'].map(category => ({ category, threshold: 'BLOCK_NONE' }));
-            const j = await mvFetch(GEMINI_API + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, ms);
-            const cand = ((j && j.candidates) || [])[0] || {};
-            const text = ((cand.content && cand.content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('\n');
-            const block = j && j.promptFeedback && j.promptFeedback.blockReason;
+            let text, block, cand;
+            if (parts.stream) {
+                const tc = parts.fast ? mvGeminiThinking(model) : null;
+                if (tc) body.generationConfig.thinkingConfig = tc;
+                let r;
+                try { r = await mvGeminiStream(model, key, body, { idle: parts.idle || 90000, total: ms, onProgress: parts.onProgress }); }
+                catch (e) {
+                    if (tc && e.code === 400) { mvGemNoThinkCfg = true; delete body.generationConfig.thinkingConfig; r = await mvGeminiStream(model, key, body, { idle: parts.idle || 90000, total: ms, onProgress: parts.onProgress }); }   // модель не знает этой настройки
+                    else throw e;
+                }
+                text = r.text; block = r.block; cand = { finishReason: r.finish };
+            } else {
+                const j = await mvFetch(GEMINI_API + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, ms);
+                cand = ((j && j.candidates) || [])[0] || {};
+                text = ((cand.content && cand.content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('\n');
+                block = j && j.promptFeedback && j.promptFeedback.blockReason;
+            }
             if (!text.trim()) {
                 if (block) throw mvErr('blocked', 'Gemini отказался отвечать (фильтр: ' + block + ')');
                 if (cand.finishReason === 'MAX_TOKENS') throw mvErr('maxtokens', 'Gemini не успел дописать ответ (кончился лимит) — попробуйте фото по одному');
