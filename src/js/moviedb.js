@@ -26,7 +26,9 @@ const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
 const MV_AI_MODELS = { gemini: 'gemini-3.8-flash', claude: 'claude-sonnet-5-5' };   // названия моделей меняются — в Настройках их можно поправить
 const MV_AI_NAMES = { gemini: 'Gemini', claude: 'Claude' };
 // Если основная модель перегружена (503) — приложение само пробует эти запасные (только когда вы не вписали свою модель)
-const MV_AI_FALLBACKS = { gemini: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'], claude: [] };
+const MV_AI_FALLBACKS = { gemini: ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite'], claude: [] };
+// Модели, которые недавно зависли (не ответили): 15 минут их пробуем последними — сразу идём к работающей
+const mvAiSlow = new Map();
 const MV_RETRY_CODES = [500, 502, 503, 504, 529];   // «сервер временно недоступен / перегружен» — имеет смысл повторить
 let MV_AI_RETRY_MS = 1500;                           // пауза перед повтором
 let mvAiUsedModel = '';                              // какая модель ответила в последний раз
@@ -403,9 +405,11 @@ function mvAiHttpError(provider, e, model) {
     if (e.code === 404) return MV_AI_NAMES[provider] + ': модель «' + (model || mvAiModel()) + '» не найдена — впишите актуальное название в Настройках';
     return MV_AI_NAMES[provider] + ': ' + e.message;
 }
-function mvAiModelChain() {   // основная модель и, если свою не вписывали, запасные
+function mvAiModelChain() {   // основная модель и, если свою не вписывали, запасные; зависшие недавно — в конец
     const c = mvCfg(), main = mvAiModel();
-    return String(c.aiModel || '').trim() ? [main] : [main].concat(MV_AI_FALLBACKS[c.ai] || []);
+    const list = String(c.aiModel || '').trim() ? [main] : [main].concat(MV_AI_FALLBACKS[c.ai] || []);
+    const now = Date.now(), slow = m => (mvAiSlow.get(m) || 0) > now;
+    return list.filter(m => !slow(m)).concat(list.filter(slow));
 }
 // Gemini по частям (SSE): ответ приходит кусками, поэтому ждём, пока куски идут, и обрываем только при долгой тишине.
 // opts: { idle, total, onProgress(chars) } → { text, finish, block }
@@ -503,23 +507,27 @@ async function mvAskAiText(parts) {   // общий вызов: parts = { text, 
         const j = await mvFetch(CLAUDE_API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify(body) }, ms);
         return ((j && j.content) || []).map(p => p.text || '').join('\n');
     };
-    // 503 и подобные — временная перегрузка у сервиса: повторяем, затем пробуем запасные модели
+    // 503 и подобные — временная перегрузка у сервиса: повторяем, затем пробуем запасные модели.
+    // Модель, которая молчит (время вышло, связь оборвалась), не повторяем — сразу берём следующую.
     const chain = mvAiModelChain(), tried = [];
     let last = null;
     for (let i = 0; i < chain.length; i++) {
         tried.push(chain[i]);
-        for (let a = 0; a < 2; a++) {
-            try { const t = await ask(chain[i]); mvAiUsedModel = chain[i]; return t; }
+        let next = false;
+        for (let a = 0; a < 2 && !next; a++) {
+            try { const t = await ask(chain[i]); mvAiUsedModel = chain[i]; mvAiSlow.delete(chain[i]); return t; }
             catch (e) {
                 last = e;
-                if (i > 0 && e.code === 404) break;                                   // запасной модели нет у этого ключа — берём следующую
+                if (i > 0 && e.code === 404) { next = true; break; }                  // запасной модели нет у этого ключа — берём следующую
+                if ((e.code === 'timeout' || e.code === 'network') && i < chain.length - 1) { mvAiSlow.set(chain[i], Date.now() + 15 * 60000); if (parts.onModel) parts.onModel(chain[i + 1]); next = true; break; }
                 if (MV_RETRY_CODES.indexOf(e.code) < 0) { e.message = mvAiHttpError(c.ai, e, chain[i]); throw e; }
-                if (a === 0) await new Promise(r => setTimeout(r, MV_AI_RETRY_MS));
+                if (a === 0) await new Promise(r => setTimeout(r, MV_AI_RETRY_MS)); else if (parts.onModel && i < chain.length - 1) parts.onModel(chain[i + 1]);
             }
         }
     }
     const e = last || mvErr('network', 'нет ответа');
-    if (MV_RETRY_CODES.indexOf(e.code) >= 0) {
+    if (e.code === 'timeout' || e.code === 'network') e.message = MV_AI_NAMES[c.ai] + ' не ответил: ' + e.message + '. Пробовали модели: ' + tried.join(', ') + ' — похоже, сервис сейчас перегружен, попробуйте через несколько минут';
+    else if (MV_RETRY_CODES.indexOf(e.code) >= 0) {
         e.message = MV_AI_NAMES[c.ai] + ' перегружен или временно недоступен (' + e.code + '). Приложение повторило запрос' + (tried.length > 1 ? ' и пробовало модели: ' + tried.join(', ') : '') + '. Это неполадка на стороне сервиса — попробуйте через минуту.';
     } else e.message = mvAiHttpError(c.ai, e, tried[tried.length - 1]);
     throw e;

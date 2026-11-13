@@ -249,6 +249,7 @@ async function medOcrBlob(blob, onPct, onStatus) {
 }
 
 // ---------- ИИ ----------
+function medAiPrompt() { return 'Сегодня ' + todayKey() + '. Если в дате на документе не дописан или неразборчив год, бери ближайший к сегодняшнему дню прошедший год.\n' + MED_AI_PROMPT; }
 const MED_AI_PROMPT = 'На фото — рецепт, назначение или заключение врача (может быть написан от руки, на русском, казахском или латыни). ' +
     'Внимательно прочитай всё и верни ТОЛЬКО JSON без пояснений, такого вида:\n' +
     '{"doctor":"ФИО врача как написано, например Иванов И.И.","specialty":"специальность врача","clinic":"название клиники, поликлиники или больницы","clinicAddress":"адрес или телефон клиники",' +
@@ -289,11 +290,11 @@ async function medAiImage(blob) {   // для почерка нужна карт
 // Один запрос к ИИ. Сырой ответ сохраняется (med_ai_last) — его видно в «Распознанном тексте», если разобрать не вышло
 async function medAiAsk(blobs, extra, status, label) {
     const name = MV_AI_NAMES[mvCfg().ai] || 'ИИ';
-    const t0 = Date.now(); let got = 0;
-    const tick = () => { const sec = Math.round((Date.now() - t0) / 1000); status(name + label + (got ? ' пишет ответ: ' + got + ' знаков' : ' читает рецепт') + ' · ' + sec + ' с'); };
+    let t0 = Date.now(), got = 0, model = '';
+    const tick = () => { const sec = Math.round((Date.now() - t0) / 1000); status(name + label + (model ? ' (модель ' + model + ')' : '') + (got ? ' пишет ответ: ' + got + ' знаков' : ' читает рецепт') + ' · ' + sec + ' с'); };
     tick(); const timer = setInterval(tick, 1000);
     let ans;
-    try { ans = await mvAskAiText({ text: MED_AI_PROMPT + extra, imageBlobs: blobs, maxTokens: 8192, timeout: 300000, idle: 120000, stream: true, fast: true, safetyOff: true, onProgress: n => { got = n; } }); }
+    try { ans = await mvAskAiText({ text: medAiPrompt() + extra, imageBlobs: blobs, maxTokens: 8192, timeout: 240000, idle: 45000, stream: true, fast: true, safetyOff: true, onProgress: n => { got = n; }, onModel: m => { model = m; got = 0; t0 = Date.now(); } }); }   // молчит 45 с — модель зависла, берём запасную
     finally { clearInterval(timer); }
     LS.set('med_ai_last', String(ans || '').slice(0, 6000));
     const j = medJsonFrom(ans);
