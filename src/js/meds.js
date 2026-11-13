@@ -8,7 +8,8 @@
 //           { id, kind:'rx', type:'recipe'|'diagnosis'|'other', title, doctor, date:'ГГГГ-ММ-ДД', note, files:[вложения-картинки], createdAt, author }
 //           Сами фото лежат в IndexedDB (BlobDB, core.js) и синхронизируются как остальные вложения (поле files, как у идей).
 //   order — назначение врача, вводится вручную.
-//           { id, kind:'order', date, doctor, diagnosis, drugs:[{ id, name, dose, how, days }], comment, rxIds:[id документов], createdAt, author }
+//           { id, kind:'order', date, doctor, clinic, diagnosis, drugs:[{ id, name, latin, dose, how, days, img, imgSrc, imgAuto, imgTried }], comment,
+//             extra:[{ k, v }] (остальные пункты), ocrText, rxIds:[id документов], createdAt, author }   — clinic, extra, ocrText, latin, img* с 2.6.0 (js/meds-recognize.js)
 //   plan  — приём лекарства в графике.
 //           { id, kind:'plan', drug, dose, note, times:['08:00', …], from, to, mode:'daily'|'every'|'week', every, wd:[0..6, 0 = пн],
 //             notify, taken:{ 'ГГГГ-ММ-ДД': ['08:00', …] }, orderId, drugId, createdAt, author }
@@ -74,7 +75,7 @@ function medOpen() { const t = LS.get('med_last', 'med-rx'); showTab(MED_TABS.in
 function medBack() { showTab(TABS.includes(medLastMain) && !MED_TABS.includes(medLastMain) ? medLastMain : 'ideas'); }
 function medTabOpened(id) {
     if (id === 'med-rx') renderMedRx();
-    if (id === 'med-orders') renderMedOrders();
+    if (id === 'med-orders') { renderMedOrders(); if (typeof medDrugImgsAuto === 'function') setTimeout(medDrugImgsAuto, 600); }
     if (id === 'med-schedule' && typeof renderMedSchedule === 'function') renderMedSchedule();
     if (id === 'med-mood' && typeof renderMedMood === 'function') renderMedMood();
     if (id !== 'med-mood' && typeof moodClosePop === 'function') moodClosePop();
@@ -250,22 +251,30 @@ function initMedRx() {
 function medDrugLine(d) { return [d.name, d.dose, d.how, d.days ? medFmtN(+d.days, 'день', 'дня', 'дней') : ''].filter(Boolean).join(' · '); }
 function medOrderPlans(order, drug) { return medList('plan').filter(p => p.orderId === order.id && (!drug || p.drugId === drug.id)); }
 
-function medOrderFormSheet(order) {
+// Форма назначения. preset — заготовка: из «Распознать» (js/meds-recognize.js) или пустая
+function medOrderFormSheet(order, preset) {
     const isNew = !order;
-    const o = order || { date: todayKey(), doctor: '', diagnosis: '', drugs: [], comment: '', rxIds: [] };
+    const o = order || Object.assign({ date: todayKey(), doctor: '', clinic: '', diagnosis: '', drugs: [], comment: '', extra: [], rxIds: [] }, preset || {});
+    const recognized = isNew && preset && preset.recognized;
     let drugs = (o.drugs || []).map(d => Object.assign({}, d));
     if (!drugs.length) drugs.push({ id: uid('md'), name: '', dose: '', how: '', days: '' });
+    let extra = (o.extra || []).map(x => ({ k: x.k || '', v: x.v || '' }));
     const rxDocs = medList('rx').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const rxSel = new Set(o.rxIds || []);
     const node = document.createElement('div'); node.className = 'med-form';
     node.innerHTML =
+        (recognized ? '<div class="med-scan-done">' + ic(recognized === 'ai' ? 'auto_awesome' : 'document_scanner') + '<div><b>Заполнено распознаванием' + (recognized === 'ai' ? ' (ИИ)' : '') + '</b><small>Проверьте пункты и поправьте, если что-то прочиталось неверно — затем «Сохранить».</small></div></div>' : '') +
         '<div class="med-row2"><div><label class="field-label" for="mo-date">Дата приёма у врача</label><input type="date" id="mo-date" value="' + esc(o.date || '') + '"></div>' +
-        '<div><label class="field-label" for="mo-doc">Врач</label><input type="text" id="mo-doc" maxlength="80" list="mo-docs" placeholder="Фамилия, специальность" value="' + esc(o.doctor) + '">' + medDatalist('mo-docs', medDoctors()) + '</div></div>' +
+        '<div><label class="field-label" for="mo-doc">Врач</label><input type="text" id="mo-doc" maxlength="80" list="mo-docs" placeholder="Фамилия И.О., специальность" value="' + esc(o.doctor) + '">' + medDatalist('mo-docs', medDoctors()) + '</div></div>' +
+        '<label class="field-label" for="mo-clinic">Клиника</label><input type="text" id="mo-clinic" maxlength="160" list="mo-clinics" placeholder="Поликлиника, медицинский центр" value="' + esc(o.clinic || '') + '">' + medDatalist('mo-clinics', medClinics()) +
         '<label class="field-label" for="mo-diag">Диагноз</label><textarea id="mo-diag" rows="2" placeholder="Как записал врач">' + esc(o.diagnosis) + '</textarea>' +
         '<label class="field-label">Лекарства</label><div id="mo-drugs" class="med-drugs"></div>' + medDatalist('mo-names', medDrugNames()) +
         '<button type="button" class="btn" id="mo-add" style="margin-top:0.5rem">' + ic('add') + 'Добавить лекарство</button>' +
         '<label class="field-label" for="mo-comm">Комментарии и остальные назначения</label><textarea id="mo-comm" rows="3" placeholder="Режим, диета, процедуры, анализы, когда прийти снова">' + esc(o.comment) + '</textarea>' +
-        (rxDocs.length ? '<label class="field-label">Фото из «Рецептов»</label><div class="chips" id="mo-rx">' + rxDocs.map(d => '<button type="button" class="chip' + (rxSel.has(d.id) ? ' is-on' : '') + '" data-id="' + esc(d.id) + '">' + ic(medRxType(d.type).icon) + esc(medRxTitle(d)) + '</button>').join('') + '</div>' : '');
+        '<label class="field-label">Другие пункты</label><div id="mo-extra" class="med-extra-edit"></div>' +
+        '<button type="button" class="btn" id="mo-xadd" style="margin-top:0.5rem">' + ic('add') + 'Добавить пункт</button>' +
+        (rxDocs.length ? '<label class="field-label">Фото из «Рецептов»</label><div class="chips" id="mo-rx">' + rxDocs.map(d => '<button type="button" class="chip' + (rxSel.has(d.id) ? ' is-on' : '') + '" data-id="' + esc(d.id) + '">' + ic(medRxType(d.type).icon) + esc(medRxTitle(d)) + '</button>').join('') + '</div>' : '') +
+        (o.ocrText ? '<details class="fold med-ocr"><summary>' + ic('text_snippet') + 'Распознанный текст</summary><div class="fold-body"><pre>' + esc(o.ocrText) + '</pre></div></details>' : '');
     const box = $('#mo-drugs', node);
     const pull = () => { $$('.med-drug', box).forEach((row, i) => { const d = drugs[i]; if (!d) return; d.name = $('[data-f="name"]', row).value.trim(); d.dose = $('[data-f="dose"]', row).value.trim(); d.how = $('[data-f="how"]', row).value.trim(); d.days = $('[data-f="days"]', row).value.trim(); }); };
     const draw = () => {
@@ -273,27 +282,48 @@ function medOrderFormSheet(order) {
             '<input type="text" data-f="name" list="mo-names" maxlength="80" placeholder="Название лекарства" aria-label="Название лекарства" value="' + esc(d.name) + '">' +
             '<button type="button" class="icon-btn is-danger" data-rm="' + i + '" aria-label="Убрать лекарство">' + ic('close') + '</button></div>' +
             '<div class="med-drug-r"><input type="text" data-f="dose" maxlength="60" placeholder="Доза: 1 таблетка, 5 мл" aria-label="Доза" value="' + esc(d.dose) + '">' +
-            '<input type="text" data-f="how" maxlength="100" placeholder="Как: 2 раза в день после еды" aria-label="Как принимать" value="' + esc(d.how) + '">' +
+            '<input type="text" data-f="how" maxlength="160" placeholder="Как: 2 раза в день после еды" aria-label="Как принимать" value="' + esc(d.how) + '">' +
             '<input type="number" data-f="days" min="1" max="999" inputmode="numeric" placeholder="Дней" aria-label="Сколько дней принимать" value="' + esc(d.days) + '"></div></div>').join('');
     };
     draw();
     box.addEventListener('click', e => { const b = e.target.closest('[data-rm]'); if (!b) return; pull(); drugs.splice(+b.dataset.rm, 1); if (!drugs.length) drugs.push({ id: uid('md'), name: '', dose: '', how: '', days: '' }); draw(); });
     $('#mo-add', node).addEventListener('click', () => { pull(); drugs.push({ id: uid('md'), name: '', dose: '', how: '', days: '' }); draw(); const rows = $$('.med-drug', box); const inp = $('[data-f="name"]', rows[rows.length - 1]); if (inp) inp.focus(); });
+    // другие пункты: «Пациент», «Повторный приём», «Номер рецепта»…
+    const xbox = $('#mo-extra', node);
+    const xpull = () => { $$('.med-x', xbox).forEach((row, i) => { if (extra[i]) { extra[i].k = $('[data-f="k"]', row).value.trim(); extra[i].v = $('[data-f="v"]', row).value.trim(); } }); };
+    const xdraw = () => {
+        xbox.innerHTML = extra.length ? extra.map((x, i) => '<div class="med-x"><input type="text" data-f="k" maxlength="40" list="mo-xk" placeholder="Пункт" aria-label="Название пункта" value="' + esc(x.k) + '">' +
+            '<input type="text" data-f="v" maxlength="300" placeholder="Значение" aria-label="Значение" value="' + esc(x.v) + '"><button type="button" class="icon-btn is-danger" data-xrm="' + i + '" aria-label="Убрать пункт">' + ic('close') + '</button></div>').join('') +
+            medDatalist('mo-xk', ['Пациент', 'Дата рождения', 'Специальность', 'Повторный приём', 'Номер рецепта', 'Действует до', 'Адрес клиники', 'Телефон']) : '<p class="hint" style="margin:0">Например: «Пациент», «Повторный приём», «Номер рецепта».</p>';
+    };
+    xdraw();
+    xbox.addEventListener('click', e => { const b = e.target.closest('[data-xrm]'); if (!b) return; xpull(); extra.splice(+b.dataset.xrm, 1); xdraw(); });
+    $('#mo-xadd', node).addEventListener('click', () => { xpull(); extra.push({ k: '', v: '' }); xdraw(); const rows = $$('.med-x', xbox); const inp = rows.length && $('[data-f="k"]', rows[rows.length - 1]); if (inp) inp.focus(); });
     const rxBox = $('#mo-rx', node);
     if (rxBox) rxBox.addEventListener('click', e => { const b = e.target.closest('[data-id]'); if (!b) return; const id = b.dataset.id; if (rxSel.has(id)) rxSel.delete(id); else rxSel.add(id); b.classList.toggle('is-on', rxSel.has(id)); });
     openSheet({
-        title: isNew ? 'Новое назначение' : 'Назначение врача', node,
+        title: isNew ? (recognized ? 'Распознанное назначение' : 'Новое назначение') : 'Назначение врача', node,
         actions: [{ label: 'Отмена', value: false }, {
             label: 'Сохранить', kind: 'primary', icon: 'check',
             onClick: () => {
-                pull();
-                const list = drugs.filter(d => d.name).map(d => ({ id: d.id || uid('md'), name: d.name, dose: d.dose, how: d.how, days: d.days ? String(Math.max(1, Math.min(999, parseInt(d.days, 10) || 0)) || '') : '' }));
-                const rec = { date: $('#mo-date', node).value || todayKey(), doctor: $('#mo-doc', node).value.trim(), diagnosis: $('#mo-diag', node).value.trim(), drugs: list, comment: $('#mo-comm', node).value.trim(), rxIds: Array.from(rxSel) };
-                if (!rec.doctor && !rec.diagnosis && !list.length && !rec.comment) { toast('Заполните хотя бы одно поле'); return false; }
-                if (isNew) meds.unshift(Object.assign({ id: uid('mo'), kind: 'order', createdAt: Date.now(), author: authorName() }, rec));
+                pull(); xpull();
+                const old = new Map(((order && order.drugs) || []).map(d => [d.id, d]));
+                const list = drugs.filter(d => d.name).map(d => {
+                    const n = { id: d.id || uid('md'), name: d.name, dose: d.dose, how: d.how, days: d.days ? String(Math.max(1, Math.min(999, parseInt(d.days, 10) || 0)) || '') : '' };
+                    ['latin', 'img', 'imgSrc', 'imgAuto', 'imgTried', 'imgNone'].forEach(k => { if (d[k] !== undefined) n[k] = d[k]; });
+                    const was = old.get(n.id);
+                    if (was && normText(was.name) !== normText(n.name) && n.imgAuto) { if (n.img) BlobDB.del(n.img.id); delete n.img; delete n.imgSrc; delete n.imgAuto; delete n.imgTried; delete n.imgNone; delete n.latin; }   // сменили лекарство — картинку подберём заново
+                    return n;
+                });
+                const keepImg = new Set(list.map(d => d.img && d.img.id).filter(Boolean));
+                old.forEach(d => { if (d.img && d.img.id && !keepImg.has(d.img.id)) BlobDB.del(d.img.id); });
+                const rec = { date: $('#mo-date', node).value || todayKey(), doctor: $('#mo-doc', node).value.trim(), clinic: $('#mo-clinic', node).value.trim(), diagnosis: $('#mo-diag', node).value.trim(), drugs: list, comment: $('#mo-comm', node).value.trim(), extra: extra.filter(x => x.v), rxIds: Array.from(rxSel) };
+                if (!rec.doctor && !rec.diagnosis && !list.length && !rec.comment && !rec.clinic) { toast('Заполните хотя бы одно поле'); return false; }
+                if (isNew) meds.unshift(Object.assign({ id: uid('mo'), kind: 'order', createdAt: Date.now(), author: authorName() }, o.ocrText ? { ocrText: o.ocrText } : {}, rec));
                 else Object.assign(order, rec);
                 saveMeds(); renderMedOrders();
                 toast(isNew ? 'Назначение сохранено' : 'Сохранено');
+                if (typeof medDrugImgsAuto === 'function') setTimeout(medDrugImgsAuto, 300);   // картинки лекарств из интернета
             }
         }]
     });
@@ -301,31 +331,41 @@ function medOrderFormSheet(order) {
 async function medOrderDelete(order) {
     const plans = medOrderPlans(order);
     if (!(await confirmSheet('Удалить назначение?', 'Назначение от ' + medDateLabel(order.date) + ' будет удалено.' + (plans.length ? ' Приёмы в графике (' + plans.length + ') останутся.' : ''), 'Удалить', true))) return;
-    meds = meds.filter(m => m !== order); saveMeds(); renderMedOrders(); toast('Назначение удалено');
+    meds = meds.filter(m => m !== order); saveMeds();
+    (order.drugs || []).forEach(d => { if (d.img && d.img.id) BlobDB.del(d.img.id); });
+    renderMedOrders(); toast('Назначение удалено');
 }
+function medClinics() { return Array.from(new Set(medList('order').map(o => (o.clinic || '').trim()).filter(Boolean))); }
 function renderMedOrders() {
+    if (typeof renderMedBlisters === 'function') renderMedBlisters();
     const host = $('#med-orders-list'); if (!host) return;
     const list = medList('order').sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
     $('#med-orders-count').textContent = list.length ? medFmtN(list.length, 'назначение', 'назначения', 'назначений') : '';
     if (!list.length) {
-        host.innerHTML = '<div class="empty"><div class="ico-big">' + ic('medical_services') + '</div><b>Назначений пока нет</b>Нажмите «Новое» и запишите, что назначил врач: лекарства, дозы и остальные комментарии.</div>';
+        host.innerHTML = '<div class="empty"><div class="ico-big">' + ic('medical_services') + '</div><b>Назначений пока нет</b>Нажмите «Распознать» — и назначение заполнится по фото рецепта, или «Новое назначение» — чтобы записать вручную.</div>';
         return;
     }
     host.innerHTML = list.map(o => {
         const docs = (o.rxIds || []).map(medById).filter(Boolean);
+        const points = [['Клиника', o.clinic]].concat((o.extra || []).map(x => [x.k || 'Пункт', x.v])).filter(x => x[1]);
         return '<article class="card med-order" data-id="' + esc(o.id) + '"><div class="card-body">' +
             '<div class="med-order-h"><div><p class="med-meta">' + ic('event') + esc(medDateLabel(o.date)) + '</p><h3>' + esc(o.doctor || 'Врач не указан') + '</h3></div>' +
             '<div class="med-acts"><button type="button" class="icon-btn" data-edit aria-label="Изменить" title="Изменить">' + ic('edit') + '</button><button type="button" class="icon-btn is-danger" data-del aria-label="Удалить" title="Удалить">' + ic('delete') + '</button></div></div>' +
+            (points.length ? '<dl class="med-points">' + points.map(x => '<div><dt>' + esc(x[0]) + '</dt><dd>' + esc(x[1]) + '</dd></div>').join('') + '</dl>' : '') +
             (o.diagnosis ? '<p class="med-diag"><span>Диагноз</span>' + esc(o.diagnosis) + '</p>' : '') +
             ((o.drugs || []).length ? '<ol class="med-druglist">' + o.drugs.map(d => {
                 const inPlan = medOrderPlans(o, d).length > 0;
-                return '<li><div class="med-dl-t"><b>' + esc(d.name) + '</b><span>' + esc([d.dose, d.how, d.days ? medFmtN(+d.days, 'день', 'дня', 'дней') : ''].filter(Boolean).join(' · ')) + '</span></div>' +
+                return '<li><button type="button" class="med-thumb med-drug-img' + (d.img ? '' : ' is-empty') + '" data-img="' + esc(d.id) + '" title="' + (d.img ? 'Картинка лекарства — нажмите, чтобы сменить' : 'Подобрать картинку') + '" aria-label="Картинка лекарства ' + esc(d.name) + '">' +
+                    (d.img ? '<img alt="" loading="lazy" data-blob="' + esc(d.img.id) + '">' : ic('pill')) + '</button>' +
+                    '<div class="med-dl-t"><b>' + esc(d.name) + '</b><span>' + esc([d.dose, d.how, d.days ? medFmtN(+d.days, 'день', 'дня', 'дней') : ''].filter(Boolean).join(' · ')) + '</span></div>' +
                     (inPlan ? '<span class="chip is-ok med-inplan">' + ic('event_available') + 'в графике</span>' : '<button type="button" class="btn med-toplan" data-plan="' + esc(d.id) + '" title="Добавить в график приёма">' + ic('alarm') + 'В график</button>') + '</li>';
             }).join('') + '</ol>' : '') +
             (o.comment ? '<p class="med-note med-comment">' + esc(o.comment) + '</p>' : '') +
             (docs.length ? '<div class="chips med-order-rx">' + docs.map(d => '<button type="button" class="chip" data-rx="' + esc(d.id) + '">' + ic('image') + esc(medRxTitle(d)) + '</button>').join('') + '</div>' : '') +
+            (o.ocrText ? '<details class="fold med-ocr"><summary>' + ic('text_snippet') + 'Распознанный текст</summary><div class="fold-body"><pre>' + esc(o.ocrText) + '</pre></div></details>' : '') +
             '</div></article>';
     }).join('');
+    medFillThumbs(host);
 }
 function initMedOrders() {
     $('#med-orders-new').addEventListener('click', () => medOrderFormSheet(null));
@@ -333,8 +373,9 @@ function initMedOrders() {
     $('#med-orders-list').addEventListener('click', e => {
         const card = e.target.closest('.med-order'); if (!card) return;
         const o = medById(card.dataset.id); if (!o) return;
-        const rx = e.target.closest('[data-rx]'), pl = e.target.closest('[data-plan]');
+        const rx = e.target.closest('[data-rx]'), pl = e.target.closest('[data-plan]'), im = e.target.closest('[data-img]');
         if (rx) { const d = medById(rx.dataset.rx); const ids = d ? (d.files || []).map(f => f.id) : []; if (ids.length) openLightbox(ids, 0); }
+        else if (im) { const d = (o.drugs || []).find(x => x.id === im.dataset.img); if (d && typeof medDrugImgSheet === 'function') medDrugImgSheet(o, d); }
         else if (pl) { const d = (o.drugs || []).find(x => x.id === pl.dataset.plan); if (d && typeof medPlanFormSheet === 'function') medPlanFormSheet(null, { drug: d.name, dose: d.dose, note: d.how, days: d.days, orderId: o.id, drugId: d.id, from: todayKey() }); }
         else if (e.target.closest('[data-del]')) medOrderDelete(o);
         else if (e.target.closest('[data-edit]')) medOrderFormSheet(o);
@@ -345,6 +386,7 @@ function initMeds() {
     $$('[data-med-open]').forEach(b => b.addEventListener('click', medOpen));
     $$('[data-med-back]').forEach(b => b.addEventListener('click', medBack));
     initMedRx(); initMedOrders();
+    if (typeof initMedRecognize === 'function') initMedRecognize();
     if (typeof initMedSchedule === 'function') initMedSchedule();
     if (typeof initMedMood === 'function') initMedMood();
 }

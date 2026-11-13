@@ -155,7 +155,10 @@ async function medPlanDelete(plan) {
 }
 
 // ---------- Отрисовка ----------
-function medScheduleChanged() { if ($('#med-schedule') && $('#med-schedule').classList.contains('is-active')) renderMedSchedule(); }
+function medScheduleChanged() {
+    if ($('#med-schedule') && $('#med-schedule').classList.contains('is-active')) renderMedSchedule();
+    if ($('#med-orders') && $('#med-orders').classList.contains('is-active') && typeof renderMedBlisters === 'function') renderMedBlisters();   // пластинки таблеток (js/meds-recognize.js)
+}
 function renderMedSchedule() { renderMedNow(); renderMedCalendar(); renderMedDay(); renderMedPlans(); renderMedNotify(); }
 
 function renderMedNow() {
@@ -435,6 +438,8 @@ async function exportMedOrdersPdf() {
             pdf.textAt(o.doctor || 'Врач не указан', pdf.mx, pdf.y + 12, 13, { bold: true, color: '#1d1b20' });
             pdf.textAt(medDateLabel(o.date), pdf.W - pdf.mx, pdf.y + 12, 10, { color: accent, bold: true, align: 'right' });
             pdf.y += 19; pdf.line(pdf.mx, pdf.y, pdf.W - pdf.mx, pdf.y, '#cac4d0', 0.6); pdf.gap(7);
+            const pts = [['Клиника', o.clinic]].concat((o.extra || []).map(x => [x.k || 'Пункт', x.v])).filter(x => x[1]);   // клиника и остальные пункты (2.6.0)
+            if (pts.length) { pts.forEach(x => pdf.para(x[0] + ': ' + x[1], { size: 10, color: '#49454f' })); pdf.gap(6); }
             if (o.diagnosis) { pdf.para('Диагноз', { size: 8.8, color: '#79747e' }); pdf.para(o.diagnosis, { size: 11, color: '#1d1b20' }); pdf.gap(6); }
             if ((o.drugs || []).length) {
                 pdf.para('Лекарства', { size: 8.8, color: '#79747e' }); pdf.gap(1);

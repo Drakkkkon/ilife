@@ -426,7 +426,7 @@ function gKey(s, withKeys) {
 
 function mediaRefs(list) {
     const set = new Set();
-    gAsList(list).forEach(i => { (i.files || []).forEach(f => f && f.id && set.add(f.id)); if (i.track && i.track.coverId) set.add(i.track.coverId); if (i.coverId) set.add(i.coverId); });
+    gAsList(list).forEach(i => { (i.files || []).forEach(f => f && f.id && set.add(f.id)); if (i.track && i.track.coverId) set.add(i.track.coverId); if (i.coverId) set.add(i.coverId); if (Array.isArray(i.drugs)) i.drugs.forEach(d => d && d.img && d.img.id && set.add(d.img.id)); });   // drugs[].img — картинки лекарств в назначениях (2.6.0)
     return set;
 }
 // Картинки и голосовые записи в блоках песен (само аудио песни идёт отдельно — папка «Песни», см. gSyncSongs)
@@ -559,6 +559,7 @@ function gMediaMeta(id) {
     }
     if (typeof dndMediaMeta === 'function') { const dm = dndMediaMeta(id); if (dm) return dm; }
     for (const m of meds) { const f = ((m && m.files) || []).find(x => x && x.id === id); if (f) return { name: f.name, type: f.type }; }   // фото рецептов и диагнозов
+    for (const m of meds) { const d = ((m && m.drugs) || []).find(x => x && x.img && x.img.id === id); if (d) return { name: d.img.name || 'лекарство.jpg', type: d.img.type || 'image/jpeg' }; }   // картинки лекарств (2.6.0)
     return {};
 }
 // Отправляет недостающие вложения на Диск, скачивает чужие, убирает в корзину «ничьи» файлы.

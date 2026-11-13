@@ -713,11 +713,14 @@
                 <header class="page-head">
                     <div class="page-head-t"><div class="dnd-kicker"><i data-i="medication"></i>Лекарства</div><h1 class="page-title">Назначение врача</h1></div>
                 </header>
+                <!-- Пластинки таблеток: после каждого приёма пропадает таблетка (js/meds-recognize.js → renderMedBlisters) -->
+                <div id="med-blisters" aria-live="polite"></div>
                 <div class="med-bigbtns">
-                    <button type="button" class="btn btn-primary" id="med-orders-new"><i data-i="add"></i>Новое назначение</button>
+                    <button type="button" class="btn btn-primary" id="med-orders-scan" title="Прочитать рецепт по фото или файлу и заполнить назначение"><i data-i="document_scanner"></i>Распознать</button>
+                    <button type="button" class="btn" id="med-orders-new"><i data-i="add"></i>Новое назначение</button>
                     <button type="button" class="btn" id="med-orders-pdf" title="Сохранить назначения в PDF"><i data-i="picture_as_pdf"></i>PDF</button>
                 </div>
-                <p class="hint med-lead">Запишите вручную, что назначил врач: диагноз, лекарства с дозами и остальные комментарии. Кнопка «В график» переносит лекарство в календарь приёма.</p>
+                <p class="hint med-lead">«Распознать» читает фото и файлы из «Рецептов» и заполняет назначение по пунктам: врач, клиника, дата, диагноз, лекарства. Или запишите всё вручную. Картинки лекарств подбираются из интернета сами; кнопка «В график» переносит лекарство в календарь приёма.</p>
                 <div class="list-head"><h2>Назначения</h2><span class="count" id="med-orders-count"></span></div>
                 <div id="med-orders-list"></div>
             </section>
@@ -1024,6 +1027,15 @@
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
                         <div class="cl-version">
+                            <h4>2.6.0 <span class="cl-tag">Лекарства: распознавание рецептов</span></h4>
+                            <ul>
+                                <li><b>Кнопка «Распознать»</b> на странице «Назначение врача». Фото и файлы из «Рецептов» (и новые снимки, PDF) читаются, и назначение заполняется по пунктам: врач (например, «Иванов И.И.»), клиника, дата, диагноз, лекарства с дозами, «как принимать» и сроком, рекомендации и другие пункты (пациент, повторный приём, номер рецепта). С подключённым ИИ (Gemini или Claude из «Кино») читается и рукописный почерк; без ИИ — печатный текст, прямо на устройстве.</li>
+                                <li><b>Картинки лекарств из интернета.</b> У каждого лекарства в назначении — фото именно этого препарата из свободной фотобазы Wikimedia Commons, подбирается само. Нажмите на картинку, чтобы выбрать другую, найти по латинскому названию или сфотографировать свою упаковку. Картинки синхронизируются через Google Диск.</li>
+                                <li><b>Пластинки таблеток</b> в самом верху страницы «Назначение врача»: по одной на каждое лекарство из графика. После каждого приёма из пластинки пропадает таблетка — нажмите на пластинку, когда приняли (отметка «принято» ставится и в «Графике приёма»).</li>
+                                <li>В назначении новые поля «Клиника» и «Другие пункты», они же — в PDF назначений. Новая свёрнутая инструкция и группа ссылок «Лекарства» — в «Настройки → Сайты и инструкции».</li>
+                            </ul>
+                        </div>
+                        <div class="cl-version">
                             <h4>2.5.0 <span class="cl-tag">ДНД: генератор карт и быстрая карта</span></h4>
                             <ul>
                                 <li><b>Исправлена задержка в редакторе карты.</b> Раньше нарисованная местность (дорога, лес, вода) появлялась на экране только после долгого ожидания: картинка брала устаревшие данные и обновлялась лишь при следующей перерисовке. Теперь клетки видны сразу, под пальцем и курсором.</li>
@@ -1287,6 +1299,12 @@
                                 <li><a class="lk-a" href="https://kenney.nl" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Kenney</b><small>kenney.nl — другие бесплатные наборы моделей</small></span></a></li>
                                 <li><a class="lk-a" href="https://threejs.org" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>three.js</b><small>threejs.org — 3D-движок (лицензия MIT)</small></span></a></li>
                             </ul></section>
+                            <section class="lk-group"><h4><i data-i="medication"></i>Лекарства</h4><ul class="lk-list">
+                                <li><a class="lk-a" href="https://commons.wikimedia.org" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Wikimedia Commons</b><small>commons.wikimedia.org — свободная фотобаза, отсюда картинки лекарств (без ключа)</small></span></a></li>
+                                <li><a class="lk-a" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Gemini — ключ ИИ</b><small>для распознавания рукописных рецептов (тот же ключ, что в «Кино»)</small></span></a></li>
+                                <li><a class="lk-a" href="https://github.com/naptha/tesseract.js" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Tesseract.js</b><small>чтение текста на устройстве без ИИ (лицензия Apache 2.0)</small></span></a></li>
+                                <li><a class="lk-a" href="https://mozilla.github.io/pdf.js/" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>pdf.js</b><small>чтение PDF-рецептов (Mozilla, лицензия Apache 2.0)</small></span></a></li>
+                            </ul></section>
                             <section class="lk-group"><h4><i data-i="link"></i>GitHub</h4><ul class="lk-list">
                                 <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Репозиторий iLife</b><small>github.com/Drakkkkon/ilife</small></span></a></li>
                                 <li><a class="lk-a" href="https://github.com/Drakkkkon/ilife/upload/main" target="_blank" rel="noopener noreferrer"><i data-i="open_in_new"></i><span><b>Загрузить файлы новой версии</b><small>Add file → Upload files</small></span></a></li>
@@ -1547,6 +1565,21 @@
                                 <p class="hint">У каждого лекарства напоминание можно выключить отдельно — значок колокольчика в блоке «Мои лекарства».</p>
                             </div>
                         </details>
+                        <details class="fold" id="instr-med-scan">
+                            <summary><i data-i="help"></i>Лекарства: распознавание рецептов, картинки лекарств и пластинки таблеток</summary>
+                            <div class="fold-body">
+                                <p class="instr-back"><button type="button" class="linkbtn" data-tabcard="med-orders|med-blisters"><i data-i="arrow_upward"></i>К странице «Назначение врача»</button></p>
+                                <ol class="steps">
+                                    <li><b>Распознать.</b> «Лекарства» → «Назначение врача» → кнопка <b>«Распознать»</b>. Отметьте фото из «Рецептов» (можно несколько — они читаются вместе как одно назначение) или снимите рецепт и выберите фото или PDF прямо там.</li>
+                                    <li><b>Чем читается.</b> Если в «Настройки → Кино: базы и оценки» подключён ИИ (Gemini или Claude), фото уходит туда: ИИ разбирает и рукописный почерк врача и расшифровывает сокращения (Rp., D.S., «t.i.d.» → «3 раза в день»). Без ИИ текст читает Tesseract прямо на телефоне — он хорошо понимает печатные бланки и плохо — почерк. Модуль Tesseract (около 15 МБ) и модуль PDF скачиваются из интернета один раз.</li>
+                                    <li><b>Проверка.</b> Откроется форма назначения, уже заполненная по пунктам: дата, врач, клиника, диагноз, лекарства (доза, как принимать, сколько дней), рекомендации и «Другие пункты» (пациент, повторный приём, номер рецепта…). Поправьте, что прочиталось неверно, и нажмите «Сохранить». Прочитанный текст целиком лежит в свёрнутом блоке «Распознанный текст».</li>
+                                    <li><b>Новые фото</b>, снятые в окне «Распознать», и страницы PDF сохраняются в «Рецепты» (галочку можно снять) и привязываются к назначению.</li>
+                                    <li><b>Картинки лекарств.</b> После сохранения приложение само ищет фото каждого препарата в свободной фотобазе Wikimedia Commons (ключ не нужен). Нажмите на картинку у лекарства, чтобы выбрать другую, найти по латинскому названию (например, Ibuprofen), сфотографировать свою упаковку или убрать картинку. В базе есть не все препараты, а упаковка может быть другой страны — своё фото всегда точнее.</li>
+                                    <li><b>Пластинки таблеток</b> — вверху страницы, по одной на каждое лекарство из «Графика приёма», которое вы принимаете сейчас. Нажмите на пластинку, когда приняли лекарство: таблетка «выдавится» и пропадёт (это та же отметка «принято», что и в графике; во всплывающей подсказке есть «Отменить»). Если у курса есть дата окончания, в пластинке столько таблеток, сколько приёмов за курс (длинный курс делится на несколько пластинок); без даты окончания — пластинка на 10 штук. Если в дозе написано «капсула», рисуются капсулы.</li>
+                                </ol>
+                                <p class="hint">Распознавание — помощник, а не врач: всегда сверяйте дозы с рецептом и инструкцией к препарату.</p>
+                            </div>
+                        </details>
                         <details class="fold" id="instr-3d">
                             <summary><i data-i="help"></i>ДНД: 3D-карта — управление и настройки графики</summary>
                             <div class="fold-body">
@@ -1657,6 +1690,7 @@
     <script src="js/meds.js"></script>
     <script src="js/meds-schedule.js"></script>
     <script src="js/meds-mood.js"></script>
+    <script src="js/meds-recognize.js"></script>
     <script src="js/config.js"></script>
     <script src="js/gdrive.js"></script>
     <script src="js/musictags.js"></script>
