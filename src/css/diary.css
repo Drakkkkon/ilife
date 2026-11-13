@@ -1,0 +1,123 @@
+/* =========================================================================
+   iLife 2.7.0 — меню «Заметки», «Медиа», «Дневник»; блок ввода «Идей»; «План на день» в «Делах»; «Дневник» и полки.
+   Файл подключается последним и уточняет правила android.css, app.css, dnd.css, meds.css.
+   ========================================================================= */
+
+/* ---------- 1. Меню: главное (шесть разделов) ↔ меню раздела с кнопкой «Назад» ----------
+   html[data-nav] ставит js/app.js (navSync): main | notes | media | diary | dnd | med */
+html:not([data-nav="notes"]) .notes-nav, html:not([data-nav="media"]) .media-nav, html:not([data-nav="diary"]) .diary-nav { display: none !important; }
+html[data-nav="notes"] .main-nav, html[data-nav="media"] .main-nav, html[data-nav="diary"] .main-nav { display: none !important; }
+html[data-nav="notes"][data-layout="compact"] .mobile-nav.notes-nav,
+html[data-nav="media"][data-layout="compact"] .mobile-nav.media-nav,
+html[data-nav="diary"][data-layout="compact"] .mobile-nav.diary-nav { animation: dndBarUp .42s var(--md-spring) both; }
+html[data-nav="notes"][data-layout="wide"] .sidebar-nav.notes-nav,
+html[data-nav="media"][data-layout="wide"] .sidebar-nav.media-nav,
+html[data-nav="diary"][data-layout="wide"] .sidebar-nav.diary-nav { animation: dndSideUp .38s var(--md-ease) both; }
+
+/* Телефон: все меню в один ряд, кроме «ДНД» (Назад + 6 страниц — два ряда) */
+html[data-layout="compact"] { --nav-h: 4.9rem; }
+html[data-layout="compact"][data-nav="dnd"] { --nav-h: 8.1rem; }
+html[data-layout="compact"] .mobile-nav.main-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+html[data-layout="compact"] .mobile-nav.notes-nav, html[data-layout="compact"] .mobile-nav.diary-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+html[data-layout="compact"] .mobile-nav.media-nav, html[data-layout="compact"] .mobile-nav.med-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+html[data-layout="compact"] .mobile-nav.main-nav button:nth-child(n),
+html[data-layout="compact"] .mobile-nav.notes-nav button:nth-child(n),
+html[data-layout="compact"] .mobile-nav.media-nav button:nth-child(n),
+html[data-layout="compact"] .mobile-nav.diary-nav button:nth-child(n),
+html[data-layout="compact"] .mobile-nav.med-nav button:nth-child(n) { grid-column: auto; }
+html[data-layout="compact"] .mobile-nav button > span:last-child { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 0.125rem; }
+
+/* ---------- 2. «Идеи»: кнопки вложений одной строкой (только значки), «Сохранить» на всю ширину под полем ---------- */
+.composer .idea-save-wide { display: flex; width: 100%; justify-content: center; min-height: 3.25rem; margin: 0.625rem 0 0; font-size: 1rem; }
+.composer .attach-row, html[data-layout="wide"] .composer .attach-row { display: flex; flex-wrap: nowrap; gap: 0.375rem; margin-top: 0.75rem; }
+.composer .attach-row .btn { flex: 1 1 0; min-width: 0; min-height: 2.875rem; padding: 0; justify-content: center; gap: 0; }
+.composer .attach-row .btn .mi { width: 1.375rem; height: 1.375rem; margin: 0; }
+.composer .composer-foot { margin-top: 0.75rem; }
+
+/* ---------- 3. «Дела» → «План на день» ---------- */
+.dp-nav { display: flex; align-items: center; gap: 0.375rem; margin: 0 0 0.75rem; }
+.dp-nav b { flex: 1 1 auto; min-width: 0; text-align: center; font-size: 1rem; font-weight: 600; }
+.dp-nav b small { display: block; color: var(--md-on-variant); font-size: 0.75rem; font-weight: 500; }
+.dp-add { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) auto; gap: 0.5rem; align-items: center; }
+.dp-add input { width: 100%; }
+.dp-list { list-style: none; margin: 0.75rem 0 0; padding: 0; display: grid; gap: 0.375rem; }
+.dp-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.375rem 0.375rem 0.625rem; background: var(--md-tile, var(--md-container-high)); border-radius: 1rem; }
+.dp-item.is-done .dp-txt { text-decoration: line-through; color: var(--md-on-variant); }
+.dp-item.is-late:not(.is-done) .dp-time { color: var(--md-error, #b3261e); }
+.dp-check { width: 1.5rem; height: 1.5rem; flex: none; accent-color: var(--md-primary); }
+.dp-time { flex: none; min-width: 2.75rem; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--md-primary); font-size: 0.9375rem; }
+.dp-time.is-empty { color: var(--md-on-variant); font-weight: 400; }
+.dp-txt { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-size: 0.9375rem; }
+.dp-item .icon-btn.is-off { opacity: .45; }
+.dp-quick { margin-top: 0.5rem; }
+.dp-foot { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.875rem; }
+.dp-empty { margin: 0.75rem 0 0; }
+@media (max-width: 26rem) { .dp-add { grid-template-columns: 5.75rem minmax(0, 1fr); } .dp-add .btn { grid-column: 1 / -1; } }
+
+/* ---------- 4. «Дневник» — запись дня ---------- */
+.dy-daybar { display: flex; align-items: center; gap: 0.375rem; margin: 0 0 0.75rem; }
+.dy-daybar .dy-date { flex: 1 1 auto; min-width: 0; text-align: center; }
+.dy-daybar .dy-date b { display: block; font-size: 1.0625rem; font-weight: 600; }
+.dy-daybar .dy-date small { display: block; color: var(--md-on-variant); font-size: 0.8125rem; }
+.dy-daybar input[type="date"] { position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+.dy-tools { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 0.125rem; padding: 0.375rem; margin: 0 0 0.5rem; background: var(--md-container-high); border-radius: 1.25rem; }
+.dy-tools button { width: 2.5rem; height: 2.5rem; display: grid; place-items: center; padding: 0; border: none; border-radius: 0.75rem; background: none; color: var(--md-on-surface); cursor: pointer; font: 600 0.9375rem/1 inherit; }
+.dy-tools button:hover { background: var(--md-hover); }
+.dy-tools button.is-on { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+.dy-tools button .mi { width: 1.25rem; height: 1.25rem; }
+.dy-tools .dy-sep { width: 0.0625rem; margin: 0.375rem 0.25rem; background: var(--md-outline-variant); }
+.dy-tools .dy-hl { background: linear-gradient(transparent 55%, #ffe58a 55%); }
+.dy-editor { min-height: 55vh; padding: 1rem 1.125rem; background: var(--md-container); border-radius: 1.5rem; box-shadow: var(--md-e1); outline: none; font-size: 1.0625rem; line-height: 1.6; overflow-wrap: anywhere; }
+.dy-editor:focus { box-shadow: 0 0 0 2px var(--md-primary), var(--md-e1); }
+.dy-editor:empty::before { content: attr(data-ph); color: var(--md-on-variant); opacity: .75; pointer-events: none; }
+.dy-editor h2 { font-size: 1.375rem; margin: 0.75rem 0 0.375rem; }
+.dy-editor h3 { font-size: 1.125rem; margin: 0.625rem 0 0.25rem; }
+.dy-editor blockquote { margin: 0.5rem 0; padding: 0.25rem 0 0.25rem 0.875rem; border-left: 0.25rem solid var(--md-primary); color: var(--md-on-variant); }
+.dy-editor ul, .dy-editor ol { padding-left: 1.5rem; margin: 0.375rem 0; }
+.dy-editor p { margin: 0 0 0.5rem; }
+.dy-editor mark { background: #ffe58a; color: inherit; padding: 0 0.125rem; border-radius: 0.1875rem; }
+.dy-status { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0.5rem 0.25rem 0; color: var(--md-on-variant); font-size: 0.8125rem; }
+.dy-media { display: grid; grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr)); gap: 0.5rem; margin-top: 0.75rem; }
+.dy-m { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 1rem; background: var(--md-container-high); }
+.dy-m img, .dy-m video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dy-m button.dy-open { position: absolute; inset: 0; border: none; padding: 0; background: none; cursor: zoom-in; }
+.dy-m .dy-play { position: absolute; left: 50%; top: 50%; width: 2.5rem; height: 2.5rem; margin: -1.25rem 0 0 -1.25rem; display: grid; place-items: center; border-radius: 50%; background: rgba(0, 0, 0, .55); color: #fff; pointer-events: none; }
+.dy-m .dy-play .mi { width: 1.5rem; height: 1.5rem; }
+.dy-m .med-thumb-x { z-index: 2; }
+.dy-m.is-missing::after { content: 'ещё не скачано'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.75rem; color: var(--md-on-variant); }
+.dy-video-sheet video { width: 100%; max-height: 70vh; border-radius: 1rem; background: #000; }
+
+/* ---------- 5. «Дневник» — полки (рисунок в духе «Геометрии Полки»: белый фон, светлая рамка, тонкая обводка, моноширинные подписи) ---------- */
+.dy-shelves { display: grid; gap: 1.25rem; }
+.dy-shelf { padding: 0.875rem 0.75rem 0.625rem; background: #fff; border: 1px solid #dde3e8; border-radius: 1.25rem; color: #1c2630; }
+.dy-shelf-h { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin: 0 0.25rem 0.375rem; }
+.dy-shelf-h b { font-size: 1.0625rem; font-weight: 600; }
+.dy-shelf-h small { font: 400 0.75rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #5d6975; }
+.dy-shelf svg { display: block; width: 100%; height: auto; }
+.dy-shelf .sh-frame { fill: #e3e8ed; stroke: #34404b; stroke-width: 1.2; stroke-linejoin: round; }
+.dy-shelf .sh-in { fill: #f5f7f9; }
+.dy-shelf .sh-grid { stroke: #e6ebef; stroke-width: .7; fill: none; }
+.dy-shelf .sh-dim path { stroke: #34404b; stroke-width: .9; fill: none; }
+.dy-shelf .sh-dim .arr { fill: #34404b; stroke: none; }
+.dy-shelf .sh-dim text, .dy-shelf .sh-tick { font: 400 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fill: #1c2630; }
+.dy-shelf .sh-tick { font-size: 10px; fill: #5d6975; }
+.dy-shelf .bk { cursor: pointer; }
+.dy-shelf .bk rect.b { stroke: #fff; stroke-width: .8; }
+.dy-shelf .bk:hover rect.b, .dy-shelf .bk:focus rect.b { stroke: #10151a; stroke-width: 2.2; }
+.dy-shelf .bk:focus { outline: none; }
+.dy-shelf .bk .sp { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-weight: 500; fill: #fff; }
+.dy-shelf .bk .band { fill: rgba(255, 255, 255, .22); }
+.dy-shelf .bk.is-today rect.b { stroke: #d9480f; stroke-width: 2.2; stroke-dasharray: 5 3; }
+.dy-shelf .ghost rect { fill: none; stroke: #ccd4db; stroke-width: 1; stroke-dasharray: 4 3; }
+.dy-shelf .ghost text { font: 400 10px ui-monospace, monospace; fill: #5d6975; }
+.dy-shelf-cap { margin: 0.375rem 0.25rem 0; font: 400 0.75rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #5d6975; }
+.dy-peek { margin-top: 0.75rem; padding: 0.75rem 0.875rem; background: var(--md-container); border-radius: 1.25rem; box-shadow: var(--md-e1); }
+.dy-peek h4 { margin: 0 0 0.25rem; font-size: 1rem; }
+.dy-peek p { margin: 0 0 0.5rem; color: var(--md-on-variant); font-size: 0.875rem; line-height: 1.45; overflow-wrap: anywhere; }
+
+.dy-tools button.dy-tx { width: auto; padding: 0 0.5rem; font-size: 0.8125rem; }
+.dy-daybar .dy-date { text-decoration: none; color: inherit; }
+.dy-shelf-h { flex-wrap: wrap; }
+.dy-shelf .sh-dim text { font-size: 15px; }
+
+.dy-shelf svg { max-width: 44rem; margin: 0 auto; }

@@ -119,8 +119,8 @@ function dndNavSync(id) {
     root.dataset.tab = id;
     if (DND_TABS.includes(id)) LS.set('dnd_last', id); else dndLastMain = id;
 }
-function dndOpen() { const t = LS.get('dnd_last', 'dnd-games'); showTab(DND_TABS.includes(t) ? t : 'dnd-games'); }
-function dndBack() { showTab(TABS.includes(dndLastMain) && !DND_TABS.includes(dndLastMain) ? dndLastMain : 'ideas'); }
+function dndOpen() { if (DND_TABS.includes(settings.lastTab) && typeof navOpenGroup === 'function') { navOpenGroup('dnd'); return; } const t = LS.get('dnd_last', 'dnd-games'); showTab(DND_TABS.includes(t) ? t : 'dnd-games'); }
+function dndBack() { navShowMain(); }   // с 2.7.0: «Назад» — главное меню, страница остаётся
 function dndTabOpened(id) {
     if (id === 'dnd-games') renderDndGames();
     if (id === 'dnd-builder' && typeof dndBuilderOpened === 'function') dndBuilderOpened();

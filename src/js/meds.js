@@ -71,8 +71,8 @@ function medNavSync(id) {
     if (MED_TABS.includes(id)) { document.documentElement.dataset.nav = 'med'; LS.set('med_last', id); }
     else if (!String(id).startsWith('dnd-')) medLastMain = id;
 }
-function medOpen() { const t = LS.get('med_last', 'med-rx'); showTab(MED_TABS.includes(t) ? t : 'med-rx'); }
-function medBack() { showTab(TABS.includes(medLastMain) && !MED_TABS.includes(medLastMain) ? medLastMain : 'ideas'); }
+function medOpen() { if (MED_TABS.includes(settings.lastTab) && typeof navOpenGroup === 'function') { navOpenGroup('med'); return; } const t = LS.get('med_last', 'med-rx'); showTab(MED_TABS.includes(t) ? t : 'med-rx'); }
+function medBack() { navShowMain(); }   // с 2.7.0: «Назад» — главное меню, страница остаётся
 function medTabOpened(id) {
     if (id === 'med-rx') renderMedRx();
     if (id === 'med-orders') { renderMedOrders(); if (typeof medDrugImgsAuto === 'function') setTimeout(medDrugImgsAuto, 600); }
