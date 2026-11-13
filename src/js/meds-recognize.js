@@ -140,7 +140,7 @@ function medRecognizeSheet(preRx) {
     $('#msc-file', node).addEventListener('click', async () => addFiles(await medPickRxFiles(false)));
     drawFresh();
     const statusEl = $('#msc-status', node);
-    const status = t => { statusEl.hidden = !t; statusEl.innerHTML = t ? '<span class="med-spin"></span><span>' + esc(t) + '</span>' : ''; };
+    const status = (t, err) => { statusEl.hidden = !t; statusEl.classList.toggle('is-err', !!err); statusEl.innerHTML = t ? (err ? ic('error') : '<span class="med-spin"></span>') + '<span>' + esc(t) + '</span>' : ''; };
     node.addEventListener('click', e => { if (e.target.closest('[data-instr]') && sheetApi) sheetApi.close(); });   // ссылка на инструкцию уводит в «Настройки»
     const sheetApi = openSheet({
         title: 'Распознать рецепт', node,
@@ -153,11 +153,11 @@ function medRecognizeSheet(preRx) {
                 const btn = api.el.querySelector('.sheet-actions .btn-primary'); if (btn) btn.disabled = true;
                 try {
                     const res = await medRecognizeRun({ rxIds: Array.from(sel), fresh: fresh.slice(), keep: $('#msc-keep', node).checked, status });
-                    if (!res) { busy = false; node.classList.remove('is-busy'); if (btn) btn.disabled = false; status(''); return false; }
+                    if (!res) { busy = false; node.classList.remove('is-busy'); if (btn) btn.disabled = false; return false; }
                     setTimeout(() => medOrderFormSheet(null, res), 220);
                 } catch (e) {
-                    console.error(e); toast('Не удалось распознать: ' + (e.message || e));
-                    busy = false; node.classList.remove('is-busy'); if (btn) btn.disabled = false; status(''); return false;
+                    console.error(e); status('Не удалось распознать: ' + (e.message || e), true);
+                    busy = false; node.classList.remove('is-busy'); if (btn) btn.disabled = false; return false;
                 }
             }
         }],
@@ -192,14 +192,14 @@ async function medRecognizeRun(o) {
             if (!r.pages.length && r.text) pages.push({ blob: null, text: r.text });
         }
     }
-    if (!pages.length) { toast('Нечего распознавать: фото не найдены'); return null; }
+    if (!pages.length) { status('Нечего распознавать: фото не найдены (возможно, ещё не скачаны с Google Диска)', true); return null; }
 
     // чтение
-    let data = null, engine = '';
+    let data = null, engine = '', aiErr = '', aiRaw = '';
     const pdfText = pages.map(p => p.text).filter(Boolean).join('\n\n');
     if (mvHasAi()) {
         try { data = await medRecognizeAi(pages, status); engine = 'ai'; }
-        catch (e) { console.warn(e); toast((e.message || 'ИИ не ответил') + ' — читаю на устройстве', { ms: 6000 }); }
+        catch (e) { console.warn(e); aiErr = e.message || 'ИИ не ответил'; aiRaw = e.raw || ''; status(aiErr + ' — читаю на устройстве…'); }
     }
     if (!data) {
         let text = pdfText;
@@ -213,7 +213,7 @@ async function medRecognizeRun(o) {
             if (typeof ocrRelease === 'function') ocrRelease();
             text = lines.join('\n\n');
         }
-        if (!text.trim()) { toast('Текст не найден — попробуйте фото ровнее и при хорошем свете'); return null; }
+        if (!text.trim()) { status((aiErr ? aiErr + '. Без ИИ' : 'Без ИИ') + ' текст тоже не найден — попробуйте фото ровнее и при хорошем свете', true); return null; }
         data = medParseRxText(text); engine = 'ocr';
     }
     status('Готовим назначение…');
@@ -226,7 +226,9 @@ async function medRecognizeRun(o) {
             meds.unshift(doc); rxIds.push(doc.id); saveMeds();
         } catch (e) { toast('Не удалось сохранить новые фото в «Рецепты»'); }
     }
-    return medRxDataToPreset(data, rxIds, engine);
+    const pre = medRxDataToPreset(data, rxIds, engine);
+    if (aiErr) { pre.aiError = aiErr; if (aiRaw) pre.ocrText = (pre.ocrText ? pre.ocrText + '\n\n' : '') + '— Ответ ИИ, который не удалось разобрать —\n' + String(aiRaw).slice(0, 3000); }
+    return pre;
 }
 
 // Tesseract (модуль из js/recognize.js): blob → текст
@@ -257,33 +259,60 @@ const MED_AI_PROMPT = 'На фото — рецепт, назначение ил
     'Правила: ничего не выдумывай — чего нет на фото, оставь пустой строкой. Сокращения рецепта (Rp., D.S., S., t.i.d., b.i.d., p.o., №10) переведи в поле how на понятный русский. ' +
     'Номер рецепта, печать, подпись, номер полиса и прочие пункты, которым нет своего поля, положи в other. Если фото несколько — это страницы одного документа.';
 function medJsonFrom(text) {
-    const s = String(text || '').replace(/```(?:json)?/gi, '');
+    const s = String(text || '').replace(/```(?:json)?/gi, '').trim();
+    const pick = v => Array.isArray(v) ? (v.find(x => x && typeof x === 'object') || null) : v && typeof v === 'object' ? v : null;
+    try { const v = pick(JSON.parse(s)); if (v) return v; } catch (e) {}
     const a = s.indexOf('{'), b = s.lastIndexOf('}');
-    if (a < 0 || b <= a) return null;
-    try { return JSON.parse(s.slice(a, b + 1)); } catch (e) { return null; }
+    if (a < 0) return null;
+    if (b > a) { try { const v = pick(JSON.parse(s.slice(a, b + 1))); if (v) return v; } catch (e) {} }
+    // ответ оборвался на середине — закрываем кавычки и скобки и берём, что успело прийти
+    let t = s.slice(a);
+    let inStr = false, esc = false; const st = [];
+    for (const ch of t) {
+        if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; }
+        if (ch === '"') inStr = true; else if (ch === '{') st.push('}'); else if (ch === '[') st.push(']'); else if (ch === '}' || ch === ']') st.pop();
+    }
+    if (inStr) t += '"';
+    t = t.replace(/,\s*$/, '').replace(/,\s*"[^"]*"\s*:?\s*$/, '').replace(/:\s*$/, ': ""');
+    try { return pick(JSON.parse(t + st.reverse().join(''))); } catch (e) { return null; }
 }
 async function medAiImage(blob) {   // для почерка нужна картинка крупнее, чем для кадров кино
-    const bmp = await decodeImage(blob), s = bitmapSize(bmp);
+    let bmp;
+    try { bmp = await decodeImage(blob); }
+    catch (e) { if (/^image\/(jpeg|png|webp|heic|heif)$/.test(blob.type || '') && blob.size < 7e6) return blob; throw new Error('не удалось открыть фото (формат ' + (blob.type || 'неизвестен') + ')'); }
+    const s = bitmapSize(bmp);
     const r = await canvasBlob(bmp, s.w, s.h, 1600, 0.86);
     if (bmp.close) try { bmp.close(); } catch (e) {}
     if (!r.blob) throw new Error('не удалось подготовить картинку');
     return r.blob;
 }
+// Один запрос к ИИ. Сырой ответ сохраняется (med_ai_last) — его видно в «Распознанном тексте», если разобрать не вышло
+async function medAiAsk(blobs, extra, status, label) {
+    const name = MV_AI_NAMES[mvCfg().ai] || 'ИИ';
+    status('Отправляем ' + name + label + ' — читает рецепт (бывает до 2–3 минут)…');
+    const ans = await mvAskAiText({ text: MED_AI_PROMPT + extra, imageBlobs: blobs, maxTokens: 8192, timeout: 180000, safetyOff: true });
+    LS.set('med_ai_last', String(ans || '').slice(0, 6000));
+    const j = medJsonFrom(ans);
+    if (!j) { const e = new Error(name + ' ответил не по форме'); e.code = 'format'; e.raw = ans; throw e; }
+    return j;
+}
 async function medRecognizeAi(pages, status) {
     const imgs = pages.filter(p => p.blob), texts = pages.map(p => p.text).filter(Boolean);
-    const out = [];
-    const batches = [];
-    for (let i = 0; i < imgs.length; i += MED_AI_BATCH) batches.push(imgs.slice(i, i + MED_AI_BATCH));
+    const extra0 = texts.length ? '\n\nТекстовый слой PDF (может помочь): \n' + texts.join('\n').slice(0, 6000) : '';
+    const blobs = [];
+    for (const p of imgs) blobs.push(await medAiImage(p.blob));
+    const out = [], batches = [];
+    for (let i = 0; i < blobs.length; i += MED_AI_BATCH) batches.push(blobs.slice(i, i + MED_AI_BATCH));
     if (!batches.length) batches.push([]);
     for (let i = 0; i < batches.length; i++) {
-        status('Отправляем ' + (MV_AI_NAMES[mvCfg().ai] || 'ИИ') + (batches.length > 1 ? ' (' + (i + 1) + ' из ' + batches.length + ')' : '') + ' — читает рецепт…');
-        const blobs = [];
-        for (const p of batches[i]) blobs.push(await medAiImage(p.blob));
-        const extra = i === 0 && texts.length ? '\n\nТекстовый слой PDF (может помочь): \n' + texts.join('\n').slice(0, 6000) : '';
-        const ans = await mvAskAiText({ text: MED_AI_PROMPT + extra, imageBlobs: blobs, maxTokens: 3000 });
-        const j = medJsonFrom(ans);
-        if (!j) throw new Error('ИИ ответил не по форме');
-        out.push(j);
+        const label = batches.length > 1 ? ' (' + (i + 1) + ' из ' + batches.length + ')' : '';
+        const extra = i === 0 ? extra0 : '';
+        try { out.push(await medAiAsk(batches[i], extra, status, label)); }
+        catch (e) {
+            // несколько фото за раз не прошли (долго, обрыв, не по форме) — пробуем по одному
+            if (batches[i].length < 2 || ['nokey', 401, 403, 429, 'blocked', 'network'].indexOf(e.code) >= 0) throw e;
+            for (let k = 0; k < batches[i].length; k++) out.push(await medAiAsk([batches[i][k]], k === 0 ? extra : '', status, ' (фото ' + (k + 1) + ' из ' + batches[i].length + ')'));
+        }
     }
     // несколько частей — склеиваем: пустые поля дополняются, лекарства и пункты складываются
     const r = Object.assign({}, out[0]);

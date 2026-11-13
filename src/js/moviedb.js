@@ -398,6 +398,7 @@ async function mvAiImage(file) {   // картинка для ИИ: не бол�
     return r.blob;
 }
 function mvAiHttpError(provider, e, model) {
+    if (String(e.message || '').startsWith(MV_AI_NAMES[provider])) return e.message;   // сообщение уже готово (пустой ответ, фильтр, обрыв)
     if (e.code === 400 && provider === 'gemini') return 'Gemini: ' + e.message + ' (проверьте ключ и название модели)';
     if (e.code === 404) return MV_AI_NAMES[provider] + ': модель «' + (model || mvAiModel()) + '» не найдена — впишите актуальное название в Настройках';
     return MV_AI_NAMES[provider] + ': ' + e.message;
@@ -406,21 +407,34 @@ function mvAiModelChain() {   // основная модель и, если св
     const c = mvCfg(), main = mvAiModel();
     return String(c.aiModel || '').trim() ? [main] : [main].concat(MV_AI_FALLBACKS[c.ai] || []);
 }
-async function mvAskAiText(parts) {   // общий вызов: parts = { text, imageBlob? или imageBlobs:[…], maxTokens? } → строка ответа (его же используют разбор постов Telegram — js/telegram.js — и распознавание рецептов — js/meds-recognize.js)
+async function mvAskAiText(parts) {   // общий вызов: parts = { text, imageBlob? или imageBlobs:[…], maxTokens?, timeout? } → строка ответа (его же используют разбор постов Telegram — js/telegram.js — и распознавание рецептов — js/meds-recognize.js)
     const c = mvCfg(), key = mvKey('aiKey');
     if (!mvHasAi()) throw mvErr('nokey', 'ИИ не подключён');
     const blobs = parts.imageBlobs || (parts.imageBlob ? [parts.imageBlob] : []);
     const imgs = [];
-    for (const b of blobs) imgs.push(await blobToBase64(b));
+    for (const b of blobs) imgs.push({ data: await blobToBase64(b), type: /^image\/(png|webp|heic|heif)$/.test(b.type || '') ? b.type : 'image/jpeg' });
+    const ms = parts.timeout || 60000;
     const ask = async model => {
         if (c.ai === 'gemini') {
-            const body = { contents: [{ parts: [{ text: parts.text }].concat(imgs.map(d => ({ inline_data: { mime_type: 'image/jpeg', data: d } }))) }], generationConfig: Object.assign({ response_mime_type: 'application/json' }, parts.maxTokens ? { maxOutputTokens: parts.maxTokens } : {}) };
-            const j = await mvFetch(GEMINI_API + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, 60000);
-            const ps = (((j && j.candidates) || [])[0] || {}).content;
-            return ((ps && ps.parts) || []).map(p => p.text || '').join('\n');
+            // Новые модели Gemini «думают» перед ответом, и эти размышления тратят тот же лимит maxOutputTokens:
+            // при маленьком лимите ответ обрывается или приходит пустым. Поэтому лимит у Gemini не меньше 16 000.
+            const body = { contents: [{ parts: [{ text: parts.text }].concat(imgs.map(d => ({ inline_data: { mime_type: d.type, data: d.data } }))) }],
+                generationConfig: { response_mime_type: 'application/json', maxOutputTokens: Math.max(parts.maxTokens || 0, 16384) } };
+            if (parts.safetyOff) body.safetySettings = ['HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT'].map(category => ({ category, threshold: 'BLOCK_NONE' }));
+            const j = await mvFetch(GEMINI_API + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, ms);
+            const cand = ((j && j.candidates) || [])[0] || {};
+            const text = ((cand.content && cand.content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('\n');
+            const block = j && j.promptFeedback && j.promptFeedback.blockReason;
+            if (!text.trim()) {
+                if (block) throw mvErr('blocked', 'Gemini отказался отвечать (фильтр: ' + block + ')');
+                if (cand.finishReason === 'MAX_TOKENS') throw mvErr('maxtokens', 'Gemini не успел дописать ответ (кончился лимит) — попробуйте фото по одному');
+                if (cand.finishReason && cand.finishReason !== 'STOP') throw mvErr('blocked', 'Gemini остановился: ' + cand.finishReason);
+                throw mvErr('empty', 'Gemini прислал пустой ответ');
+            }
+            return text;
         }
-        const body = { model, max_tokens: parts.maxTokens || 1200, messages: [{ role: 'user', content: imgs.map(d => ({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: d } })).concat([{ type: 'text', text: parts.text }]) }] };
-        const j = await mvFetch(CLAUDE_API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify(body) }, 60000);
+        const body = { model, max_tokens: parts.maxTokens || 1200, messages: [{ role: 'user', content: imgs.map(d => ({ type: 'image', source: { type: 'base64', media_type: /heic|heif/.test(d.type) ? 'image/jpeg' : d.type, data: d.data } })).concat([{ type: 'text', text: parts.text }]) }] };
+        const j = await mvFetch(CLAUDE_API, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }, body: JSON.stringify(body) }, ms);
         return ((j && j.content) || []).map(p => p.text || '').join('\n');
     };
     // 503 и подобные — временная перегрузка у сервиса: повторяем, затем пробуем запасные модели

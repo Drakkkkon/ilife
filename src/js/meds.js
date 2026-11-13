@@ -264,6 +264,7 @@ function medOrderFormSheet(order, preset) {
     const node = document.createElement('div'); node.className = 'med-form';
     node.innerHTML =
         (recognized ? '<div class="med-scan-done">' + ic(recognized === 'ai' ? 'auto_awesome' : 'document_scanner') + '<div><b>Заполнено распознаванием' + (recognized === 'ai' ? ' (ИИ)' : '') + '</b><small>Проверьте пункты и поправьте, если что-то прочиталось неверно — затем «Сохранить».</small></div></div>' : '') +
+        (isNew && preset && preset.aiError ? '<div class="med-scan-done is-warn">' + ic('warning') + '<div><b>ИИ не смог прочитать рецепт</b><small>' + esc(preset.aiError) + '. Ниже — чтение на устройстве: оно понимает только печатный текст.</small></div></div>' : '') +
         '<div class="med-row2"><div><label class="field-label" for="mo-date">Дата приёма у врача</label><input type="date" id="mo-date" value="' + esc(o.date || '') + '"></div>' +
         '<div><label class="field-label" for="mo-doc">Врач</label><input type="text" id="mo-doc" maxlength="80" list="mo-docs" placeholder="Фамилия И.О., специальность" value="' + esc(o.doctor) + '">' + medDatalist('mo-docs', medDoctors()) + '</div></div>' +
         '<label class="field-label" for="mo-clinic">Клиника</label><input type="text" id="mo-clinic" maxlength="160" list="mo-clinics" placeholder="Поликлиника, медицинский центр" value="' + esc(o.clinic || '') + '">' + medDatalist('mo-clinics', medClinics()) +
