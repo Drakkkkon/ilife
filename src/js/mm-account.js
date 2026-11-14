@@ -437,7 +437,7 @@
 
     // ---------- карточка ----------
     var mountEl = null, floating = null;
-    function cardHtml() {
+    function cardHtml(inPop) {
         if (!user) {
             var reg = mode === 'register', rst = mode === 'reset';
             return '<div class="mma-head"><b>' + (reg ? 'Регистрация' : rst ? 'Смена пароля' : 'Вход в аккаунт') + '</b></div>' +
@@ -453,7 +453,7 @@
                 (mode === 'login' ? '<a href="#" data-act="reset">Забыли пароль?</a>' : '') + '</div>';
         }
         var last = Number(lsGet(k('last'))) || 0;
-        return '<div class="mma-head"><b>Аккаунт</b></div>' +
+        return (inPop ? '<div class="mma-head"><b>Аккаунт</b></div>' : '') +
             '<p class="mma-who">Вы вошли как <b>' + esc(user.email) + '</b>' + (user.verified ? '' : '<br><small>Почта не подтверждена — проверьте письмо.</small>') + '</p>' +
             '<p class="mma-status mma-st-' + status.state + '">' + esc(status.text || (last ? 'Последняя синхронизация: ' + new Date(last).toLocaleString('ru-RU') : '')) + '</p>' +
             (cfg.note ? '<p class="mma-hint">' + esc(cfg.note) + '</p>' : '') +
@@ -466,7 +466,7 @@
         var pop = document.getElementById('mma-pop'); if (pop) boxes.push(pop.querySelector('.mma-card'));
         var keep = {}; ['mma-email', 'mma-pass', 'mma-pass2'].forEach(function (id) { var el = document.getElementById(id); if (el) keep[id] = el.value; });
         var focus = document.activeElement && document.activeElement.id;
-        boxes.forEach(function (b) { if (b) { b.classList.add('mma-card'); b.innerHTML = cardHtml(); } });
+        boxes.forEach(function (b) { if (b) { b.classList.add('mma-card'); b.innerHTML = cardHtml(b !== mountEl); } });
         Object.keys(keep).forEach(function (id) { var el = document.getElementById(id); if (el) el.value = keep[id]; });
         if (focus) { var f = document.getElementById(focus); if (f) f.focus(); }
         if (floating) { floating.classList.toggle('is-in', !!user); floating.title = user ? 'Аккаунт: ' + user.email : 'Войти в аккаунт'; floating.classList.toggle('is-err', status.state === 'error'); }
