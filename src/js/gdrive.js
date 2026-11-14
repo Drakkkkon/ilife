@@ -382,7 +382,9 @@ function gStamp() {
 // Хук для остального кода приложения
 function cloudLocalChanged() {
     if (!gBaseline || gApplying) return;
-    if (gStamp() && gUser && gCfg().auto) scheduleCloudSync(G_SYNC_DELAY);
+    if (!gStamp()) return;
+    if (gUser && gCfg().auto) scheduleCloudSync(G_SYNC_DELAY);
+    if (window.MMAccount) MMAccount.changed();   // 2.8.0: общий аккаунт (src/js/account.js)
 }
 
 function gLocalSnapshot() {

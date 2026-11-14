@@ -903,6 +903,13 @@
             <section id="settings" class="tab" data-tab="settings">
                 <header class="page-head"><h1 class="page-title">Настройки</h1></header>
 
+                <!-- 2.8.0: общий аккаунт для всех моих сайтов — почта и пароль, данные в облаке Firebase (js/mm-account.js, js/account.js) -->
+                <div class="card" id="account-card">
+                    <h3 class="card-title"><span class="ico"><i data-i="cloud_done"></i></span><span class="ttl">Аккаунт</span><span class="badge" id="acct-badge">Не выполнен</span>
+                        <button type="button" class="icon-btn card-toggle" aria-label="Свернуть или развернуть блок"><i data-i="expand_less"></i></button></h3>
+                    <div class="card-body"><div id="acct-box"></div></div>
+                </div>
+
                 <!-- Google: вход и синхронизация с Google Диском (js/gdrive.js) -->
                 <div class="card" id="google-card">
                     <h3 class="card-title"><span class="ico"><i data-i="add_to_drive"></i></span><span class="ttl">Google Диск</span><span class="badge" id="g-badge">Не подключён</span>
@@ -1125,6 +1132,14 @@
 
                         <div id="changelog" class="changelog">
                         <h4 class="cl-head"><i data-i="history"></i>Журнал изменений</h4>
+                        <div class="cl-version">
+                            <h4>2.8.0 <span class="cl-tag">Общий аккаунт</span></h4>
+                            <ul>
+                                <li><b>Аккаунт по почте и паролю</b> (Настройки → «Аккаунт», над «Google Диском»): один на все мои сайты — My Money, iLife, Геометрия Полки, Мое_коровы, My_topsecret, Мое_наклейки. Вошли на одном сайте — вошли на всех. Есть регистрация, «Забыли пароль?» и выход.</li>
+                                <li>В аккаунт идут записи и настройки iLife (идеи, дела, кино, песни, ДНД, лекарства, дневник, план на день, ключи — если включено «Ключи тоже на Диск») и сами переходят между устройствами: при открытии, раз в минуту и после правок. Сливаются поштучно, как с Google Диском.</li>
+                                <li>Файлы — картинки, музыка, голосовые, песни, фото и видео Мое_совсек — остаются только на Google Диске. Аккаунт и Google Диск работают вместе.</li>
+                            </ul>
+                        </div>
                         <div class="cl-version">
                             <h4>2.7.0 <span class="cl-tag">Меню «Заметки», «Медиа», «Дневник»; план на день</span></h4>
                             <ul>
@@ -1863,6 +1878,8 @@
     <script src="js/pdf.js"></script>
     <script src="js/pdf-export.js"></script>
     <script src="js/settings.js"></script>
+    <script src="js/mm-account.js"></script>
+    <script src="js/account.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

@@ -138,6 +138,7 @@ async function bootstrap() {
     $$('[data-nav-back]').forEach(b => b.addEventListener('click', navShowMain));
     initSettings();
     initCloud();
+    initAccount();   // 2.8.0: общий аккаунт для всех моих сайтов
     let start = (location.hash || '').replace('#', '');
     if (!TABS.includes(start)) start = settings.lastTab;
     if (spReturn) { await spotifyHandleRedirect(); start = 'settings'; renderSpotifyCard(); }
