@@ -10,4 +10,5 @@
 - `assets/3d/` (движок three.js, модели `town.bin`/`town.json`, тексты лицензий) и `tools/` (сборка этих ресурсов) лежат в корне и сборкой не сжимаются; файлы из `assets/3d/` грузятся лениво при открытии 3D-режима (`?v=APP_VERSION`), в `CORE` в `src/sw.js` их нет. Скрипты 3D — `src/js/dnd-city3d-world.js` и `src/js/dnd-city3d.js`.
 - Генератор карт ДНД — `src/js/dnd-citygen.js` (чистые функции, без интерфейса; `dndCityGenerate`, `DND_GEN_PRESETS`); окно генератора и `applyGen` — в `src/js/dnd-city.js`. Местность рисуется из живого массива `this.tiles` (не из строки `city.tiles`, она обновляется только при `save()`/`snap()`).
 - Инструкции и ссылки на сайты — только в блоке «Сайты и инструкции» внизу «Настроек» (свёрнуты); в блоках ключей — одна ссылка на инструкцию.
-- Архивы версий (`iLife_vX.Y.Z.zip`) в репозиторий не кладутся — они хранятся на Google Диске.
+- Архивы версий (`iLife_vX.Y.Z.zip`) в этот репозиторий не кладутся — они лежат в ветке `archives` репозитория Drakkkkon/maymani (папка `ilife/`).
+- «Комиксы» (2.9.0): `comics/index.html` — копия index.html из Drakkkkon/topsecret (встроенный режим `?embed=ilife`), не сжимается; правки — сначала в topsecret, затем копия сюда. Связь — `src/js/comics.js`.

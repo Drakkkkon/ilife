@@ -51,6 +51,7 @@ function applyTheme(id) {
     set('--md-error', p.expense); set('--md-income', p.income);
     set('--md-tertiary', p.tertiary); set('--md-tertiary-container', p.tertiaryContainer); set('--md-on-tertiary-container', p.onTertiaryContainer);
     root.dataset.mode = p.dark ? 'dark' : 'light';
+    if (typeof comicsThemeChanged === 'function') setTimeout(comicsThemeChanged, 0);   // «Комиксы» (2.9.0) берут цвета темы
     root.dataset.variant = p.v;
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', p.surface);

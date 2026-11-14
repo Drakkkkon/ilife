@@ -121,3 +121,25 @@ html[data-layout="compact"] .mobile-nav button > span:last-child { max-width: 10
 .dy-shelf .sh-dim text { font-size: 15px; }
 
 .dy-shelf svg { max-width: 44rem; margin: 0 auto; }
+
+/* ---------- 6. «Комиксы» (2.9.0): встроенная программа My_topsecret на всю высоту страницы ---------- */
+html:not([data-nav="comics"]) .comics-nav { display: none !important; }
+html[data-nav="comics"] .main-nav { display: none !important; }
+html[data-nav="comics"][data-layout="compact"] .mobile-nav.comics-nav { animation: dndBarUp .42s var(--md-spring) both; }
+html[data-nav="comics"][data-layout="wide"] .sidebar-nav.comics-nav { animation: dndSideUp .38s var(--md-ease) both; }
+html[data-layout="compact"] .mobile-nav.main-nav { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+html[data-layout="compact"] .mobile-nav.comics-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+html[data-layout="compact"] .mobile-nav.comics-nav button:nth-child(n) { grid-column: auto; }
+html[data-layout="compact"] .mobile-nav.main-nav .pill, html[data-layout="compact"] .mobile-nav.comics-nav .pill { width: min(3rem, 100%); }
+html[data-tab="comics"] main { max-width: none; padding: 0 0 calc(var(--nav-h) + 0.25rem); }
+html[data-layout="wide"][data-tab="comics"] main { padding: 0.5rem 0.75rem 0.5rem; }
+#comics.tab-canvas.is-active { height: calc(100vh - var(--nav-h) - 0.5rem); height: calc(100dvh - var(--nav-h) - 0.5rem); min-height: 22rem; }
+html[data-layout="wide"] #comics.tab-canvas.is-active { height: calc(100vh - 1rem); height: calc(100dvh - 1rem); }
+.cx-host { position: relative; flex: 1 1 auto; min-height: 0; border-radius: 0 0 1.5rem 1.5rem; overflow: hidden; background: var(--md-surface); }
+html[data-layout="wide"] .cx-host { border-radius: 1.5rem; box-shadow: var(--md-e1); }
+.cx-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--md-surface); }
+.cx-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 0.625rem; color: var(--md-on-variant); }
+/* читалка комикса — на весь экран: меню и отступы iLife прячутся */
+html[data-cx-reader] .mobile-nav, html[data-cx-reader] .sidebar, html[data-cx-reader] .fab { display: none !important; }
+html[data-cx-reader] .cx-host { position: fixed; inset: 0; z-index: 90; border-radius: 0; }
+html[data-layout="compact"] .mobile-nav.main-nav button { font-size: 0.5625rem; letter-spacing: 0; }

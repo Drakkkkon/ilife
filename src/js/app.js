@@ -4,13 +4,14 @@
 // служебный воркер (работа без сети).
 // =====================================================================================================
 
-const TABS = ['ideas', 'todo', 'movies', 'music', 'scripts', 'sovsek', 'settings', 'diary', 'diary-shelf', 'dnd-games', 'dnd-builder', 'dnd-chars', 'dnd-visual', 'dnd-plot', 'dnd-settings', 'med-rx', 'med-orders', 'med-schedule', 'med-mood'];   // с 2.0.0 — страницы раздела «ДНД» (js/dnd.js), с 2.2.0 — раздела «Лекарства» (js/meds.js)
+const TABS = ['ideas', 'todo', 'movies', 'music', 'scripts', 'sovsek', 'settings', 'diary', 'diary-shelf', 'comics', 'dnd-games', 'dnd-builder', 'dnd-chars', 'dnd-visual', 'dnd-plot', 'dnd-settings', 'med-rx', 'med-orders', 'med-schedule', 'med-mood'];   // с 2.0.0 — страницы раздела «ДНД» (js/dnd.js), с 2.2.0 — раздела «Лекарства» (js/meds.js)
 // Меню с 2.7.0: главное — «Заметки», «Медиа», «Дневник», «ДНД», «Лекарства», «Настройки». Каждый раздел (кроме «Настроек»)
 // открывает своё меню с кнопкой «Назад»; «Назад» возвращает главное меню, а открытая страница остаётся (html[data-nav]).
 const NAV_GROUPS = {
     notes: ['ideas', 'todo'],
     media: ['movies', 'music', 'scripts', 'sovsek'],
     diary: ['diary', 'diary-shelf'],
+    comics: ['comics'],   // с 2.9.0: страницы раздела переключает меню iLife внутри встроенной программы (js/comics.js)
     dnd: ['dnd-games', 'dnd-builder', 'dnd-chars', 'dnd-visual', 'dnd-plot', 'dnd-settings'],
     med: ['med-rx', 'med-orders', 'med-schedule', 'med-mood']
 };
@@ -38,7 +39,7 @@ function showTab(id) {
     if (!TABS.includes(id)) id = 'ideas';
     $$('.tab').forEach(t => t.classList.toggle('is-active', t.id === id));
     $$('[data-tab]').forEach(b => { if (b.tagName === 'BUTTON') { const on = b.dataset.tab === id; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'page' : 'false'); } });
-    $('#fab').classList.toggle('is-hidden', id === 'settings' || id === 'sovsek' || id === 'scripts' || id === 'music' || id.startsWith('dnd-') || id.startsWith('med-') || id.startsWith('diary'));
+    $('#fab').classList.toggle('is-hidden', id === 'settings' || id === 'sovsek' || id === 'scripts' || id === 'music' || id.startsWith('dnd-') || id.startsWith('med-') || id.startsWith('diary') || id === 'comics');
     if (typeof dndNavSync === 'function') dndNavSync(id);   // меню: главное или меню «ДНД» с кнопкой «Назад»
     if (typeof medNavSync === 'function') medNavSync(id);   // …или меню «Лекарства»
     navSync(id);   // с 2.7.0 — общий для всех разделов
@@ -55,6 +56,7 @@ function showTab(id) {
     if (id.startsWith('dnd-') && typeof dndTabOpened === 'function') dndTabOpened(id);
     if (id.startsWith('med-') && typeof medTabOpened === 'function') medTabOpened(id);
     if (id.startsWith('diary') && typeof diaryTabOpened === 'function') diaryTabOpened(id);
+    if (id === 'comics' && typeof comicsTabOpened === 'function') comicsTabOpened(); else document.documentElement.removeAttribute('data-cx-reader');
     if (id === 'todo' && typeof renderDayPlan === 'function') renderDayPlan();
 }
 
@@ -134,6 +136,7 @@ async function bootstrap() {
     initMeds();
     if (typeof initDayPlan === 'function') initDayPlan();
     if (typeof initDiary === 'function') initDiary();
+    if (typeof initComics === 'function') initComics();
     $$('[data-group-open]').forEach(b => { if (!b.hasAttribute('data-dnd-open') && !b.hasAttribute('data-med-open')) b.addEventListener('click', () => navOpenGroup(b.dataset.groupOpen)); });
     $$('[data-nav-back]').forEach(b => b.addEventListener('click', navShowMain));
     initSettings();
