@@ -470,7 +470,7 @@ html[data-embed="ilife"] #vbar{border-top-color:transparent;background:var(--sur
 
 <div id="app">
   <header id="top"><div class="gut in">
-    <div class="brand" aria-label="My_topsecret"><b>My</b><span class="bn">_topsecret</span><span class="ver" id="ver" aria-label="Версия 0.5.0">v0.5.0</span></div>
+    <div class="brand" aria-label="My_topsecret"><b>My</b><span class="bn">_topsecret</span><span class="ver" id="ver" aria-label="Версия 0.6.0">v0.6.0</span></div>
     <button class="ib" id="syncBtn" data-act="syncinfo" aria-label="Синхронизация" hidden><i data-i="cloud"></i></button>
     <button class="ib" data-act="search" aria-label="Глобальный поиск"><i data-i="search"></i></button>
     <button class="ib" data-act="add" aria-label="Добавить комиксы"><i data-i="plus"></i></button>
@@ -583,7 +583,7 @@ const uid=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const pl=(n,a,b,c)=>{const m=n%100,d=n%10;return(m>10&&m<20)?c:d===1?a:(d>1&&d<5)?b:c};
 const AGES=['0+','6+','12+','16+','18+'];
-const APP='My_topsecret',VERSION='0.5.0';
+const APP='My_topsecret',VERSION='0.6.0';
 const EMBED=document.documentElement.dataset.embed==='ilife';   /* 0.5.0: открыт внутри iLife (раздел «Комиксы») */
 const FCOLORS=['#FFC400','#FF7A59','#FF5D8F','#B368FF','#5B8DEF','#22B8CF','#3DBE7A','#9BA3B5','#2B2F3A'];
 const FEMOJI=['📁','⭐','❤️','🔥','📚','🦸','🧙','🚀','👾','🤖','🕵️','👻','🐉','⚔️','🏰','🌸','🍜','😂','😱','💥','🎭','🌍','🧪','🎮','🌙','☀️','🐱','🐶','🦊','🍀','💎','🎯','🏆','🔒','🧠','🎨','📥','📨','☁️','🏛️'];
@@ -1002,6 +1002,20 @@ function parseComicInfo(xml){
       tags:g('Tags').split(/[,;]/).map(s=>s.replace(/^#+/,'').trim()).filter(Boolean)};
     const web=g('Web');if(/^https?:\/\//i.test(web))out.srcUrl=web;
     const notes=g('Notes');
+    /* 0.6.0: всё, для чего у комикса нет своего поля, дописываем в описание (архивы из «Мое_граббер» и других программ) */
+    const kv={};
+    if(/^Мое_граббер/.test(notes))for(const part of notes.split('|').slice(1)){const i=part.indexOf('=');if(i>0)kv[part.slice(0,i).trim()]=part.slice(i+1).trim()}
+    if(kv.country)out.country=kv.country;
+    const LANGS={ru:'русский',en:'английский',ja:'японский',ko:'корейский',zh:'китайский',uk:'украинский',kk:'казахский'};
+    const num=g('Number'),chT=g('Title'),lang=g('LanguageISO');
+    const extra=[
+      ['Другие названия',kv.altTitle],['Художник',[g('Penciller'),g('Inker'),g('CoverArtist')].filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i).join(', ')],
+      ['Издатель',g('Publisher')],['Статус',kv.status],['Тип',g('Format')||kv.type],['Язык',LANGS[lang]||lang],
+      ['Глава',[num,chT&&chT!==out.title&&!(num&&chT==='Глава '+num)?chT:''].filter(Boolean).join(' — ')],['Глав всего',g('Count')||kv.chapters],
+      ['Рейтинг на сайте',kv.rating],['Сайт',kv.siteName],['Страница главы',/^https?:\/\//i.test(kv.url||'')&&kv.url!==web?kv.url:'']
+    ].filter(([,v])=>v);
+    if(extra.length)out.desc=(out.desc?out.desc+'\n\n':'')+extra.map(([k,v])=>k+': '+v).join('\n');
+    if(Object.keys(kv).length)out.fromGrabber=true;
     if(/^My_topsecret/.test(notes)){                                 /* a file exported by this app: restore the extra fields */
       out.marker=true;
       for(const part of notes.split('|').slice(1)){const i=part.indexOf('=');if(i<1)continue;const k=part.slice(0,i).trim(),v=part.slice(i+1).trim();
@@ -1014,7 +1028,15 @@ function setBusy(text,pct){
   const t=$('#busyText'),b=$('#busyBar');
   if(t)t.textContent=text;if(b)b.style.width=Math.round(pct*100)+'%';
 }
+/* имя архива «Автор_Название.zip» (так называет «Мое_граббер»): без сведений внутри берём название после «_» */
+function archiveTitle(name,info){
+  const t=prettify(name);
+  if(info&&info.title)return t;
+  const m=/^([^_]{2,60})_(.+)$/.exec(String(name).replace(/\.(cbz|zip)$/i,''));
+  return m?prettify(m[2]):t;
+}
 async function storeComic(title,chapters,getBlob,info={},extra0={}){
+  info=Object.assign({},info);const coverBlob=info.coverBlob;delete info.coverBlob;
   const extra=Object.assign({},extra0),quiet=!!extra.bg,noCover=!!extra.noCover;delete extra.bg;delete extra.noCover;
   const id=extra.id||uid();extra.id=id;let total=chapters.reduce((s,c)=>s+c.items.length,0),n=0,first=null;
   const outCh=[];
@@ -1029,7 +1051,9 @@ async function storeComic(title,chapters,getBlob,info={},extra0={}){
     outCh.push({title:ch.title,pages:ch.items.length});
   }
   if(!first)throw new Error('empty');
-  const c=mk(Object.assign({id,title:info.title||title,chapters:outCh,cover:await makeCover(first),source:'device'},info,extra));
+  let cover=null,coverSrc='';
+  if(coverBlob){try{cover=await makeCover(coverBlob);coverSrc='archive'}catch{}}
+  const c=mk(Object.assign({id,title:info.title||title,chapters:outCh,cover:cover||await makeCover(first),source:'device'},coverSrc?{coverSrc,coverTried:true}:{},info,extra));
   if(extra.folder&&!folderById(extra.folder))c.folder=null;
   if(!c.title)c.title=title;
   c.mt=Date.now();
@@ -1054,7 +1078,9 @@ async function importZip(file,extra={},fallback={}){
   if(!window.JSZip)throw new Error('Не загрузилась библиотека для архивов (JSZip).');
   const zip=await JSZip.loadAsync(file);
   const entries=Object.values(zip.files).filter(e=>!e.dir&&!/(^|\/)(\.|__MACOSX)/.test(e.name));
-  const imgs=entries.filter(e=>IMG_RE.test(e.name)).map(e=>({rel:e.name.split('/'),ref:e}));
+  /* 0.6.0: папка _info — сведения и обложка (так сохраняет «Мое_граббер»), это не страницы */
+  const coverEntry=entries.find(e=>/(^|\/)_info\/cover\.(jpe?g|png|webp|gif|avif|bmp)$/i.test(e.name));
+  const imgs=entries.filter(e=>IMG_RE.test(e.name)&&!/(^|\/)_info\//i.test(e.name)).map(e=>({rel:e.name.split('/'),ref:e}));
   if(!imgs.length){
     const arcs=entries.filter(e=>ARC_RE.test(e.name)).sort((a,b)=>natural(a.name,b.name));
     if(!arcs.length)throw new Error('В архиве нет картинок.');
@@ -1070,8 +1096,9 @@ async function importZip(file,extra={},fallback={}){
   const info=infoEntry?parseComicInfo(await infoEntry.async('string')):{};
   const common=imgs.every(i=>i.rel.length>1)&&new Set(imgs.map(i=>i.rel[0])).size===1;
   const rows=common?imgs.map(i=>({rel:i.rel.slice(1),ref:i.ref})):imgs;
-  const meta=Object.assign({},compact(fallback),compact(info));delete meta.marker;
-  await storeComic(prettify(file.name),buildChapters(rows,info.marker),async it=>new Blob([await it.ref.async('arraybuffer')],{type:mimeOf(it.ref.name)}),meta,extra);
+  const meta=Object.assign({},compact(fallback),compact(info));delete meta.marker;delete meta.fromGrabber;
+  if(coverEntry){try{meta.coverBlob=new Blob([await coverEntry.async('arraybuffer')],{type:mimeOf(coverEntry.name)})}catch{}}
+  await storeComic(archiveTitle(file.name,info),buildChapters(rows,info.marker),async it=>new Blob([await it.ref.async('arraybuffer')],{type:mimeOf(it.ref.name)}),meta,extra);
   return 1;
 }
 async function importFiles(fileList){
@@ -1900,7 +1927,15 @@ function catHTML(){
 
 /* ───────── changelog ───────── */
 const CHANGELOG=[
-  {v:'0.5.0',date:'14 ноября 2026',title:'Комиксы внутри iLife',now:true,groups:[
+  {v:'0.6.0',date:'15 ноября 2026',title:'Сведения из архивов «Мое_граббер»',now:true,groups:[
+    ['Добавление архивов',[
+      'Архивы, которые скачивает «Мое_граббер» (программа для Windows, кнопка 📖 «Авто-листание»), добавляются сразу со всеми сведениями с сайта: название, автор, год, жанры, теги, описание, переводчик, возраст, страна и ссылка — в свои поля; художник, другие названия, статус, тип, язык, глава, издатель и сайт — в конец описания.',
+      'Обложка берётся из архива (папка _info), а не из первой страницы. Папка _info не попадает в страницы.',
+      'Работает и с любыми архивами CBZ/ZIP с файлом ComicInfo.xml: художник, издатель, номер главы и язык теперь тоже попадают в описание.',
+      'Архив без сведений, названный «Автор_Название.zip», получает название без автора.'
+    ]]
+  ]},
+  {v:'0.5.0',date:'14 ноября 2026',title:'Комиксы внутри iLife',groups:[
     ['iLife',[
       'Программа встроена в iLife как раздел «Комиксы» со своим меню: Избранное, Хранилище, Категории, Telegram, Настройки. Это та же библиотека: комиксы, оценки, папки и место чтения общие с отдельным сайтом My_topsecret (тот же адрес сайта).',
       'Внутри iLife — цвета и шрифт текущей темы iLife, без своего нижнего меню и логотипа; читалка открывается на весь экран. Если Client ID Google здесь не вписан, берётся тот же, что в iLife.'
