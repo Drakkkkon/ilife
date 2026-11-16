@@ -1,6 +1,6 @@
 // iLife — служебный воркер: приложение открывается и без интернета (кроме погоды, курсов, шрифта Google, входа Google, Spotify, YouTube, Telegram, ИИ, баз фильмов и новых песен с Google Диска; скачанные песни играют и без сети).
 // Файлы приложения кешируются при первом открытии; при выходе новой версии меняйте CACHE (число в конце) — старый кеш удалится сам.
-const CACHE = 'ilife-v2.9.1';
+const CACHE = 'ilife-v2.10.0';
 const CORE = [
     './', 'index.html', 'manifest.webmanifest', 'favicon.ico',
     'css/android.css', 'css/app.css',
@@ -36,7 +36,7 @@ self.addEventListener('notificationclick', e => {
     e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
         const c = list[0];
         if (c) { c.postMessage({ type: plan ? 'plan-notify' : 'med-notify', keys, taken }); return taken || !c.focus ? undefined : c.focus(); }
-        const q = plan ? 'plan' : 'med', hash = plan ? '#todo' : '#med-schedule';
+        const q = plan ? 'plan' : 'med', hash = plan ? '#day-cal' : '#med-schedule';
         const url = new URL('./?' + q + '=' + (taken ? 'taken:' + encodeURIComponent(keys.join(',')) : 'open') + hash, self.registration.scope).href;
         return self.clients.openWindow ? self.clients.openWindow(url) : undefined;
     }));
